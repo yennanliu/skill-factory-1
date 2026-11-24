@@ -26,3 +26,9 @@ evals:
   max_pass_rate: 0.95
   runs: 5
 side_effects: local
+# Waivers: skill was imported unchanged in Phase 0. Fix after Phase 4 evals exist so the change is
+# measured (split sections into references/ to get under 500 lines; add checks + recovery table).
+lint_waivers:
+  - SF003  # body 524 lines > 500
+  - SF005  # steps are reference patterns, not a workflow; verification to be added
+  - SF007  # no error-recovery table yet

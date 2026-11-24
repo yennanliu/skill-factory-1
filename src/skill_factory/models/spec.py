@@ -61,6 +61,8 @@ class Spec(_Strict):
     budget: Budget = Budget()
     evals: EvalPolicy = EvalPolicy()
     side_effects: Literal["none", "local", "external"] = "none"
+    # Rule ids (e.g. "SF007") waived for this skill; add a YAML comment with the reason.
+    lint_waivers: list[str] = []
 
     @model_validator(mode="after")
     def _domain_matches_tier(self) -> Spec:

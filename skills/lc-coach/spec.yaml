@@ -32,3 +32,7 @@ evals:
   max_pass_rate: 0.95
   runs: 5
 side_effects: none
+# Waivers: imported unchanged in Phase 0; revisit with eval evidence (Phase 4/7 ablation).
+lint_waivers:
+  - SF002  # description ~152 tokens; carries trigger phrases that may matter for routing
+  - SF005  # coaching modes are not a linear workflow

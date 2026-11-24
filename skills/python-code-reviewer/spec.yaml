@@ -24,3 +24,7 @@ evals:
   max_pass_rate: 0.95
   runs: 5
 side_effects: none
+# Waivers: imported unchanged in Phase 0; revisit with eval evidence (Phase 4/7 ablation).
+lint_waivers:
+  - SF005  # report sections, not workflow steps
+  - SF007  # no error-recovery table yet

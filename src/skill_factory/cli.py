@@ -12,6 +12,9 @@ from rich.console import Console
 from rich.table import Table
 
 from skill_factory import __version__
+from skill_factory.gitutil import changed_skills
+from skill_factory.lint import RULES, lint_skills
+from skill_factory.lint.output import as_github, as_json, as_text
 from skill_factory.market import BuildError, build, check, release
 from skill_factory.paths import claude_version_pin, repo_root, sf_home
 from skill_factory.spec import SkillError, discover, load_skill
@@ -142,6 +145,54 @@ def release_cmd(
     if not no_build:
         build(root)
         console.print("rebuilt plugins/")
+
+
+@app.command("lint")
+def lint_cmd(
+    skills: Annotated[
+        list[str] | None, typer.Argument(help="Skill names; omit to lint all skills.")
+    ] = None,
+    changed: Annotated[
+        bool, typer.Option("--changed", help="Only skills with changed files (git).")
+    ] = False,
+    base: Annotated[
+        str | None,
+        typer.Option(help="With --changed: compare against this ref (e.g. origin/main)."),
+    ] = None,
+    fmt: Annotated[
+        Literal["text", "json", "github"], typer.Option("--format", help="Output format.")
+    ] = "text",
+    strict: Annotated[bool, typer.Option(help="Fail on warnings too.")] = False,
+    list_rules: Annotated[bool, typer.Option("--list-rules", help="List rules and exit.")] = False,
+) -> None:
+    """Lint skills against the house rules (design doc §6)."""
+    if list_rules:
+        table = Table("id", "name", "severity", "checks")
+        for r in RULES.values():
+            table.add_row(r.id, r.name, r.severity, r.summary)
+        console.print(table)
+        return
+    root = _root()
+    if changed:
+        names = changed_skills(root, base)
+        if not names:
+            console.print("no changed skills")
+            return
+    else:
+        names = skills or [p.name for p in discover(root)]
+    paths = []
+    for n in names:
+        if not (root / "skills" / n).is_dir():
+            err.print(f"[red]error:[/] no such skill: {n}")
+            raise typer.Exit(2)
+        paths.append(root / "skills" / n)
+    report = lint_skills(paths)
+    render = {"text": as_text, "json": as_json, "github": as_github}[fmt]
+    out = render(report)
+    if out:
+        print(out)
+    if report.errors or (strict and report.warnings):
+        raise typer.Exit(1)
 
 
 @app.callback()

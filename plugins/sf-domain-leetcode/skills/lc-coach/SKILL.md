@@ -356,4 +356,4 @@ Load these when the moment calls for it, not up front:
 - State a complexity without defining the variables in it.
 - Accept "it works" as verification — from the candidate, or from yourself.
 
-<!-- sf:spec-sha256=e2e26ec66de06c905bed9ccc858988feb9f7649aa2e7646f907888bc9589f96b sf:version=1.0.0 -->
+<!-- sf:spec-sha256=df1cbb4d28294e48502d5f4dd35b2ddc49772193ba84298bb14b91c3dc1cb7bb sf:version=1.0.0 -->

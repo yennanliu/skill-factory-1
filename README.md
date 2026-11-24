@@ -22,6 +22,8 @@ uv run sf version            # sf, installed Claude Code, pinned contract versio
 uv run sf spec validate      # validate skills/*/spec.yaml + SKILL.md frontmatter
 uv run sf build              # regenerate plugins/ + .claude-plugin/marketplace.json
 uv run sf release lc-add --bump patch   # bump skill + plugin version, rebuild
+uv run sf lint               # house rules; --list-rules, --changed, --format github, --strict
+uvx pre-commit install       # lint changed skills + check generated files on every commit
 uv run pytest                # unit + Claude Code contract tests
 uv run ruff check . && uv run ruff format --check . && uv run mypy
 scripts/probe_claude.sh      # re-capture Claude Code payloads after upgrading the CLI (~$0.01)
@@ -49,11 +51,12 @@ scripts/probe_claude.sh      # re-capture Claude Code payloads after upgrading t
 | `market.yaml` | marketplace name/owner and per-plugin versions |
 | `plugins/`, `.claude-plugin/` | **generated** by `sf build`; never edit by hand |
 | `scripts/probe_claude.sh` | records real hook / stream-json payloads into `tests/fixtures/claude/<version>/` |
+| `src/skill_factory/lint/rules.py` | lint rules SF001–SF013; waive per skill with `lint_waivers` in `spec.yaml` |
 | `docs/CLAUDE_CODE_CONTRACT.md` | Claude Code facts we depend on, confirmed by the probe |
 
 ## Status / 狀態
-Phase 1 (specs, build, marketplace) — see [the implementation plan](docs/IMPLEMENTATION_PLAN.en.md).
-階段 1（spec、建置、marketplace）— 見[實作計畫](docs/IMPLEMENTATION_PLAN.zh-TW.md)。
+Phase 2 (linter) — see [the implementation plan](docs/IMPLEMENTATION_PLAN.en.md).
+階段 2（linter）— 見[實作計畫](docs/IMPLEMENTATION_PLAN.zh-TW.md)。
 
 ## References / 參考
 - Uber Engineering — [How Uber Evals 1 Million Agent Skill Invocations a Month](https://www.uber.com/us/en/blog/optimizing-ubers-agent-skills/) (2026-11-23)

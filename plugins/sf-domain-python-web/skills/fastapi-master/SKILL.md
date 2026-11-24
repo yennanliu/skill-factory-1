@@ -529,4 +529,4 @@ When providing FastAPI code:
 - Demonstrate proper dependency injection
 - Provide working, production-ready code
 
-<!-- sf:spec-sha256=27af9e3887f726cf5af87699f06a3680e25ce0f84c10f1474140b7af834d3448 sf:version=1.0.0 -->
+<!-- sf:spec-sha256=4a3859ea2dbed74796c34d73184f3661437d7e438513e3466935d5df28328f7a sf:version=1.0.0 -->

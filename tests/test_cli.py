@@ -36,3 +36,16 @@ def test_spec_validate_fails_on_bad_skill(repo, monkeypatch) -> None:  # type: i
     (repo / "skills" / "alpha" / "SKILL.md").write_text("no frontmatter\n")
     result = runner.invoke(app, ["spec", "validate"])
     assert result.exit_code == 1
+
+
+def test_lint_cli_exit_codes(repo, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.chdir(repo)
+    ok = runner.invoke(app, ["lint", "--format", "json"])
+    assert ok.exit_code == 0  # fixture skills only produce warnings
+    assert runner.invoke(app, ["lint", "--strict"]).exit_code == 1
+    md = repo / "skills" / "alpha" / "SKILL.md"
+    md.write_text(md.read_text() + "\nlog to /tmp/shared.log\n")
+    bad = runner.invoke(app, ["lint", "alpha"])
+    assert bad.exit_code == 1
+    assert "SF010" in bad.output
+    assert runner.invoke(app, ["lint", "nope"]).exit_code == 2
