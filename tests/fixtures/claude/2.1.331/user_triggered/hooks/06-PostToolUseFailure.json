@@ -1,0 +1,20 @@
+{
+  "cwd": "<TMP>/work",
+  "duration_ms": 296,
+  "effort": {
+    "level": "medium"
+  },
+  "error": "Exit code 1\nls: ./nonexistent-sf-probe: No such file or directory",
+  "hook_event_name": "PostToolUseFailure",
+  "is_interrupt": false,
+  "permission_mode": "default",
+  "prompt_id": "<UUID1>",
+  "session_id": "<UUID0>",
+  "tool_input": {
+    "command": "ls ./nonexistent-sf-probe",
+    "description": "List nonexistent path (expected to fail)"
+  },
+  "tool_name": "Bash",
+  "tool_use_id": "<TOOLU1>",
+  "transcript_path": "<HOME>/.claude/projects/<TMP_SLUG>-work/<UUID0>.jsonl"
+}

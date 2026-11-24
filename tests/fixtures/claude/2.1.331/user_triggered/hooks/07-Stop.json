@@ -1,0 +1,15 @@
+{
+  "background_tasks": [],
+  "cwd": "<TMP>/work",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "Stop",
+  "last_assistant_message": "done",
+  "permission_mode": "default",
+  "prompt_id": "<UUID1>",
+  "session_crons": [],
+  "session_id": "<UUID0>",
+  "stop_hook_active": false,
+  "transcript_path": "<HOME>/.claude/projects/<TMP_SLUG>-work/<UUID0>.jsonl"
+}
