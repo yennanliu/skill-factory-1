@@ -11,6 +11,7 @@ Run: `python -m skill_factory.telemetry.collector [--port 4318] [--dir ~/.skill-
 from __future__ import annotations
 
 import argparse
+import contextlib
 import gzip
 import json
 import threading
@@ -19,6 +20,7 @@ from pathlib import Path
 
 SIGNALS = {"/v1/logs": "logs", "/v1/metrics": "metrics", "/v1/traces": "traces"}
 DEFAULT_PORT = 4318
+UNSUPPORTED = b'{"error":"only http/json is supported; set OTEL_EXPORTER_OTLP_PROTOCOL=http/json"}'
 
 
 def make_handler(out_dir: Path) -> type[BaseHTTPRequestHandler]:
@@ -51,8 +53,7 @@ def make_handler(out_dir: Path) -> type[BaseHTTPRequestHandler]:
                 return
             ctype = self.headers.get("Content-Type", "")
             if "json" not in ctype:
-                msg = b'{"error":"only http/json is supported; set OTEL_EXPORTER_OTLP_PROTOCOL=http/json"}'
-                self._reply(415, msg)
+                self._reply(415, UNSUPPORTED)
                 return
             raw = self.rfile.read(int(self.headers.get("Content-Length", "0")))
             if self.headers.get("Content-Encoding") == "gzip":
@@ -80,11 +81,11 @@ def main() -> None:
     ap.add_argument("--dir", type=Path, default=Path.home() / ".skill-factory" / "otel")
     args = ap.parse_args()
     srv = serve(args.dir.expanduser(), args.port)
-    print(f"sf otel collector on http://127.0.0.1:{srv.server_address[1]} -> {args.dir}", flush=True)
-    try:
+    print(
+        f"sf otel collector on http://127.0.0.1:{srv.server_address[1]} -> {args.dir}", flush=True
+    )
+    with contextlib.suppress(KeyboardInterrupt):
         srv.serve_forever()
-    except KeyboardInterrupt:
-        pass
 
 
 if __name__ == "__main__":

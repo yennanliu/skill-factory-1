@@ -14,6 +14,7 @@ from pathlib import Path
 
 from skill_factory.telemetry.collector import DEFAULT_PORT
 
+
 # Must match profiles/otel.env (tested).
 def otel_env(port: int = DEFAULT_PORT) -> dict[str, str]:
     return {
@@ -54,9 +55,19 @@ def up(otel_dir: Path, port: int = DEFAULT_PORT) -> int:
     otel_dir.mkdir(parents=True, exist_ok=True)
     log = (otel_dir / "collector.log").open("a")
     proc = subprocess.Popen(
-        [sys.executable, "-m", "skill_factory.telemetry.collector", "--port", str(port),
-         "--dir", str(otel_dir)],
-        stdout=log, stderr=log, stdin=subprocess.DEVNULL, start_new_session=True,
+        [
+            sys.executable,
+            "-m",
+            "skill_factory.telemetry.collector",
+            "--port",
+            str(port),
+            "--dir",
+            str(otel_dir),
+        ],
+        stdout=log,
+        stderr=log,
+        stdin=subprocess.DEVNULL,
+        start_new_session=True,
     )
     _pid_file(otel_dir).write_text(f"{proc.pid} {port}\n")
     for _ in range(50):

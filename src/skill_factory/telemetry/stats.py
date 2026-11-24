@@ -74,6 +74,6 @@ ORDER BY 2 DESC, 1
 
 
 def skill_stats(con: duckdb.DuckDBPyConnection, since: datetime) -> list[SkillStats]:
-    """Calls prefer OTel `skill_activated` (exact), falling back to hook events; cost is OTel-only."""
+    """Calls prefer OTel `skill_activated`, falling back to hook events; cost is OTel-only."""
     rows = con.execute(QUERY, {"since": since}).fetchall()
     return [SkillStats(*r) for r in rows]
