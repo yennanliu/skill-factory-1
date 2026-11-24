@@ -1,0 +1,8 @@
+{
+  "name": "sf-platform",
+  "version": "0.1.0",
+  "description": "Always-on platform skills and telemetry hooks.",
+  "author": {
+    "name": "yennanliu"
+  }
+}

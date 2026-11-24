@@ -62,7 +62,26 @@ Built-in plugins (`cc-plugin-*@builtin`) are always listed in `init.plugins`; fi
 `--max-turns`, `--max-budget-usd`, `--allowedTools`, `--no-session-persistence`. Redirect stdin from `/dev/null`
 or the CLI waits 3 s for piped input.
 
-## 5. Still unverified
+## 5. OpenTelemetry (confirmed by `scripts/probe_otel.sh`)
+
+Fixtures: `tests/fixtures/otel/<version>/{logs,metrics}.jsonl` (OTLP JSON, one export request per line).
+Env: `profiles/otel.env` — `OTEL_EXPORTER_OTLP_PROTOCOL=http/json` works, so a stdlib HTTP receiver is
+enough (no Docker collector needed).
+
+| Fact | Value |
+|---|---|
+| Log events seen | `user_prompt`, `skill_activated`, `api_request`, `tool_decision`, `tool_result`, `assistant_response`, `plugin_loaded`, `mcp_server_connection`, `managed_settings_resolved` (body `claude_code.<name>`, attr `event.name` = `<name>`) |
+| `skill_activated` | `skill.name` (`<plugin>:<skill>`), `invocation_trigger` = **`claude-proactive`** (model) or **`user-slash`** (typed), `skill.source`, `plugin.name`, `marketplace.name` |
+| `api_request` | `cost_usd`, `model`, `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_creation_tokens`, `duration_ms`, `prompt.id`, and **`skill.name` on every request made after the skill activated**. The request that *decided* to call the skill has no `skill.name` |
+| `tool_result` | `tool_name`, `success`, `duration_ms`, `tool_input` (needs `OTEL_LOG_TOOL_DETAILS=1`), sizes |
+| Prompt / response text | redacted by Claude Code (`<REDACTED>`) unless `OTEL_LOG_USER_PROMPTS` is set |
+| Metrics | `claude_code.cost.usage` and `claude_code.token.usage` carry `skill.name` + `model`; also `session.count`, `active_time.total` |
+| Common attributes | `session.id`, `event.timestamp`, `event.sequence`, plus user/org/account attributes (the probe sanitizer redacts them) |
+
+Consequence: **cost per skill = `sum(api_request.cost_usd) GROUP BY skill.name`**; calls and trigger come from
+`skill_activated`. Hook events add tool-error attribution and work without the OTel env.
+
+## 6. Still unverified
 
 - Token usage location inside `~/.claude/projects/*.jsonl` transcripts (we avoid depending on it).
 - Behaviour of plugin **skills** under `--bare` (hooks are documented as skipped). Checked in Phase 4.

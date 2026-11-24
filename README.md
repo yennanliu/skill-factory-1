@@ -24,6 +24,7 @@ uv run sf build              # regenerate plugins/ + .claude-plugin/marketplace.
 uv run sf release lc-add --bump patch   # bump skill + plugin version, rebuild
 uv run sf lint               # house rules; --list-rules, --changed, --format github, --strict
 uvx pre-commit install       # lint changed skills + check generated files on every commit
+scripts/probe_otel.sh        # re-capture OTel payloads after upgrading the CLI (~$0.01)
 uv run pytest                # unit + Claude Code contract tests
 uv run ruff check . && uv run ruff format --check . && uv run mypy
 scripts/probe_claude.sh      # re-capture Claude Code payloads after upgrading the CLI (~$0.01)
@@ -43,6 +44,19 @@ scripts/probe_claude.sh      # re-capture Claude Code payloads after upgrading t
 | `domain` + `domain: x` | `sf-domain-x` |
 | `experimental` | `sf-experimental` |
 
+## Telemetry / 遙測
+Two sources, both local-only (`$SF_HOME`, default `~/.skill-factory/`):
+
+1. **Hooks**: install `sf-platform` (`/plugin install sf-platform@skill-factory`). Each skill call, each tool error
+   (attributed to the active skill) and each session start/end is appended to `telemetry/events.jsonl`. No
+   prompts, tool input or paths are recorded.
+2. **OpenTelemetry**: gives the cost per skill.
+   ```bash
+   uv run sf otel up                 # stdlib collector on 127.0.0.1:4318 -> ~/.skill-factory/otel/
+   eval "$(uv run sf otel env)"      # then start claude from this shell
+   uv run sf stats --since 1d        # calls, model/user trigger, sessions, cost/call, tool errors
+   ```
+
 ## Layout / 結構
 | Path | What |
 |---|---|
@@ -52,11 +66,13 @@ scripts/probe_claude.sh      # re-capture Claude Code payloads after upgrading t
 | `plugins/`, `.claude-plugin/` | **generated** by `sf build`; never edit by hand |
 | `scripts/probe_claude.sh` | records real hook / stream-json payloads into `tests/fixtures/claude/<version>/` |
 | `src/skill_factory/lint/rules.py` | lint rules SF001–SF013; waive per skill with `lint_waivers` in `spec.yaml` |
+| `hooks/` | telemetry hook (stdlib only) + `hooks.json`, shipped in `sf-platform` via `assets` |
+| `src/skill_factory/telemetry/` | OTLP collector, DuckDB ingest, `sf stats` |
 | `docs/CLAUDE_CODE_CONTRACT.md` | Claude Code facts we depend on, confirmed by the probe |
 
 ## Status / 狀態
-Phase 2 (linter) — see [the implementation plan](docs/IMPLEMENTATION_PLAN.en.md).
-階段 2（linter）— 見[實作計畫](docs/IMPLEMENTATION_PLAN.zh-TW.md)。
+Phase 3 (telemetry) — see [the implementation plan](docs/IMPLEMENTATION_PLAN.en.md).
+階段 3（遙測）— 見[實作計畫](docs/IMPLEMENTATION_PLAN.zh-TW.md)。
 
 ## References / 參考
 - Uber Engineering — [How Uber Evals 1 Million Agent Skill Invocations a Month](https://www.uber.com/us/en/blog/optimizing-ubers-agent-skills/) (2026-11-23)

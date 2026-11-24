@@ -21,6 +21,11 @@
       "name": "sf-domain-python-web",
       "source": "./plugins/sf-domain-python-web",
       "description": "Python web development skills (FastAPI)."
+    },
+    {
+      "name": "sf-platform",
+      "source": "./plugins/sf-platform",
+      "description": "Always-on platform skills and telemetry hooks."
     }
   ]
 }

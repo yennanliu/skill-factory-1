@@ -8,6 +8,7 @@ plugins:
   sf-platform:
     version: 0.1.0
     description: Always-on platform skills and telemetry hooks.
+    assets: [hooks]  # hooks/hooks.json + hooks/sf_telemetry.py
   sf-core:
     version: 0.1.0
     description: Widely useful, tested skills reviewed by the platform owner.

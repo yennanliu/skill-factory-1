@@ -107,3 +107,18 @@ def test_claude_validates_generated_marketplace(repo: Path) -> None:
         ["claude", "plugin", "validate", str(repo)], capture_output=True, text=True, timeout=120
     )
     assert out.returncode == 0, out.stdout + out.stderr
+
+
+def test_plugin_assets_are_copied(repo: Path) -> None:
+    (repo / "hooks").mkdir()
+    (repo / "hooks" / "hooks.json").write_text('{"hooks": {}}\n')
+    market = repo / "market.yaml"
+    market.write_text(
+        market.read_text() + "  sf-platform:\n    version: 0.1.0\n    assets: [hooks]\n"
+    )
+    result = build(repo)
+    assert result.plugins["sf-platform"] == []
+    assert (repo / "plugins" / "sf-platform" / "hooks" / "hooks.json").is_file()
+    market.write_text(market.read_text().replace("assets: [hooks]", "assets: [missing]"))
+    with pytest.raises(BuildError, match="asset dir 'missing' does not exist"):
+        build(repo)
