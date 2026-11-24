@@ -9,6 +9,8 @@ A scaled-down, Uber-style platform for authoring, evaluating, measuring and impr
 ## Docs / 文件
 - Design doc (English): [docs/DESIGN.en.md](docs/DESIGN.en.md)
 - 設計文件（繁體中文）：[docs/DESIGN.zh-TW.md](docs/DESIGN.zh-TW.md)
+- Implementation plan (English): [docs/IMPLEMENTATION_PLAN.en.md](docs/IMPLEMENTATION_PLAN.en.md)
+- 實作計畫（繁體中文）：[docs/IMPLEMENTATION_PLAN.zh-TW.md](docs/IMPLEMENTATION_PLAN.zh-TW.md)
 
 ## Status / 狀態
 Phase 0 — design only. See the roadmap in the design doc (section 12).
