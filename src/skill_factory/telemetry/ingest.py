@@ -145,7 +145,5 @@ def connect(events_file: Path, otel_logs_file: Path) -> duckdb.DuckDBPyConnectio
             f"INSERT INTO hook_events VALUES ({', '.join('?' * len(HOOK_COLS))})", hooks
         )
     if otel:
-        con.executemany(
-            f"INSERT INTO otel_events VALUES ({', '.join('?' * len(OTEL_COLS))})", otel
-        )
+        con.executemany(f"INSERT INTO otel_events VALUES ({', '.join('?' * len(OTEL_COLS))})", otel)
     return con
