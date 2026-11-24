@@ -1,7 +1,7 @@
 # raw telemetry and run outputs (may contain session metadata)
-telemetry/
-runs/
-papercuts/inbox.jsonl
+/telemetry/
+/runs/
+/papercuts/inbox.jsonl
 # python
 __pycache__/
 *.pyc
