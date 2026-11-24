@@ -23,6 +23,8 @@ uv run sf spec validate      # validate skills/*/spec.yaml + SKILL.md frontmatte
 uv run sf build              # regenerate plugins/ + .claude-plugin/marketplace.json
 uv run sf release lc-add --bump patch   # bump skill + plugin version, rebuild
 uv run sf lint               # house rules; --list-rules, --changed, --format github, --strict
+uv run sf eval lc-add        # run a skill's evals (via `claude plugin eval`), with a no-skill baseline
+uv run sf eval --all --runs 3 -j 8   # every skill; results in runs/<skill>/<timestamp>/
 uvx pre-commit install       # lint changed skills + check generated files on every commit
 scripts/probe_otel.sh        # re-capture OTel payloads after upgrading the CLI (~$0.01)
 uv run pytest                # unit + Claude Code contract tests
@@ -57,6 +59,14 @@ Two sources, both local-only (`$SF_HOME`, default `~/.skill-factory/`):
    uv run sf stats --since 1d        # calls, model/user trigger, sessions, cost/call, tool errors
    ```
 
+## Evals / 評測
+Cases live in `skills/<name>/evals/<case>/case.yaml`, in Claude Code's own
+[plugin eval format](https://code.claude.com/docs/en/plugin-evals.md). Shared scaffold scripts go in `evals/_shared/`.
+`sf eval` stages the skill as a one-skill plugin and runs `claude plugin eval` with `--no-publish`, `--scaffold`,
+the spec's tool grants and a no-plugin **baseline arm**. It then reports, per case and per skill: the pass rate with
+a 95% Wilson interval, the baseline pass rate, the mean score, and how often the skill actually fired.
+Each skill's status is checked against its spec: `ok`, `below-min` (exit 1) or `too-easy` (above `max_pass_rate`).
+
 ## Layout / 結構
 | Path | What |
 |---|---|
@@ -71,8 +81,8 @@ Two sources, both local-only (`$SF_HOME`, default `~/.skill-factory/`):
 | `docs/CLAUDE_CODE_CONTRACT.md` | Claude Code facts we depend on, confirmed by the probe |
 
 ## Status / 狀態
-Phase 3 (telemetry) — see [the implementation plan](docs/IMPLEMENTATION_PLAN.en.md).
-階段 3（遙測）— 見[實作計畫](docs/IMPLEMENTATION_PLAN.zh-TW.md)。
+Phase 4 (evals) — see [the implementation plan](docs/IMPLEMENTATION_PLAN.en.md).
+階段 4（評測）— 見[實作計畫](docs/IMPLEMENTATION_PLAN.zh-TW.md)。
 
 ## References / 參考
 - Uber Engineering — [How Uber Evals 1 Million Agent Skill Invocations a Month](https://www.uber.com/us/en/blog/optimizing-ubers-agent-skills/) (2026-11-23)

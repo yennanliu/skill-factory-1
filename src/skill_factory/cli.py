@@ -311,6 +311,93 @@ def stats_cmd(
     console.print(table)
 
 
+@app.command("eval")
+def eval_cmd(
+    skills: Annotated[list[str] | None, typer.Argument(help="Skills to evaluate.")] = None,
+    all_skills: Annotated[bool, typer.Option("--all", help="Every skill that has evals/.")] = False,
+    runs: Annotated[
+        int | None, typer.Option(help="Runs per case (default: spec evals.runs).")
+    ] = None,
+    model: Annotated[
+        str | None, typer.Option(help="Model (default: spec targets.models[0]).")
+    ] = None,
+    budget: Annotated[float, typer.Option(help="Hard USD ceiling per skill.")] = 2.0,
+    jobs: Annotated[int, typer.Option("--jobs", "-j", help="Concurrent agent runs (1-8).")] = 1,
+    case: Annotated[str | None, typer.Option(help="Only cases matching this glob.")] = None,
+    tag: Annotated[list[str] | None, typer.Option(help="Only cases with this tag.")] = None,
+    no_baseline: Annotated[
+        bool, typer.Option("--no-baseline", help="Skip the no-plugin baseline arm.")
+    ] = False,
+    allow_tools: Annotated[
+        list[str] | None, typer.Option("--allow-tools", help="Extra tool grants.")
+    ] = None,
+) -> None:
+    """Run skills' eval suites via `claude plugin eval` and check pass rates against the spec."""
+    from skill_factory.eval.runner import EvalError, EvalOptions, run_eval
+
+    root = _root()
+    if all_skills:
+        names = [p.name for p in discover(root) if (p / "evals").is_dir()]
+    elif skills:
+        names = skills
+    else:
+        err.print("[red]error:[/] name skills or pass --all")
+        raise typer.Exit(2)
+    opts = EvalOptions(
+        runs=runs,
+        model=model,
+        budget_usd=budget,
+        concurrency=jobs,
+        case=case,
+        tags=tuple(tag or ()),
+        ablation=not no_baseline,
+        allow_tools=tuple(allow_tools or ()),
+    )
+    table = Table("skill", "status", "pass rate", "95% CI", "baseline", "runs", "cost", "results")
+    failed = False
+    for name in names:
+        try:
+            skill = load_skill(root / "skills" / name)
+            console.print(f"[bold]{name}[/]: running…")
+            summary, out_dir = run_eval(skill, root / "runs", opts)
+        except (SkillError, EvalError, FileNotFoundError) as e:
+            err.print(f"[red]error:[/] {name}: {e}")
+            failed = True
+            continue
+        lo, hi = summary.interval
+        colour = {"ok": "green", "too-easy": "yellow"}.get(summary.status, "red")
+        rate = summary.pass_rate
+        base = summary.baseline_pass_rate
+        table.add_row(
+            name,
+            f"[{colour}]{summary.status}[/]",
+            f"{rate:.0%}" if rate is not None else "-",
+            f"{lo:.0%}-{hi:.0%}",
+            f"{base:.0%}" if base is not None else "-",
+            str(summary.runs),
+            f"${summary.total_cost_usd:.2f}",
+            str(out_dir.relative_to(root)),
+        )
+        for c in summary.cases:
+            cr = c.pass_rate
+            br = c.baseline_pass_rate
+            console.print(
+                f"  {c.name}: {c.passes}/{c.runs}"
+                + (f" ({cr:.0%})" if cr is not None else "")
+                + (f", mean score {c.mean_score:.2f}" if c.mean_score is not None else "")
+                + (f", skill fired {c.fired_runs}/{c.runs}" if c.fired_runs is not None else "")
+                + (f", baseline {br:.0%}" if br is not None else "")
+                + (f", {c.errors} errored" if c.errors else "")
+            )
+        for note in summary.notes:
+            err.print(f"  [yellow]note:[/] {note}")
+        if summary.status in ("below-min", "no-runs"):
+            failed = True
+    console.print(table)
+    if failed:
+        raise typer.Exit(1)
+
+
 @app.callback()
 def main() -> None:
     """Skill factory CLI."""

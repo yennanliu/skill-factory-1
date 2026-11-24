@@ -1,0 +1,746 @@
+{
+ "schemaVersion": 1,
+ "claudeVersion": "2.1.331",
+ "startedAt": "2026-11-24T11:01:08.476Z",
+ "durationSeconds": 32,
+ "costUsd": 0.568265,
+ "partial": false,
+ "suite": {
+  "root": "<TMP>",
+  "ablation": "with-without",
+  "modelOverride": "claude-sonnet-5-5",
+  "threshold": 0,
+  "concurrency": 8,
+  "plugins": [
+   {
+    "name": "sf-eval-lc-coach",
+    "version": "1.0.0",
+    "path": "<TMP>"
+   }
+  ]
+ },
+ "cases": [
+  {
+   "name": "mock-starts-without-solution",
+   "dir": "evals/mock-starts-without-solution",
+   "source": "case_yaml",
+   "promptMarkdown": "mock interview me on a sliding window problem",
+   "runsPerCase": 3,
+   "timeoutSeconds": 300,
+   "maxTurns": 8,
+   "graders": [
+    {
+     "name": "poses-a-problem",
+     "type": "llm",
+     "weight": 1,
+     "graderMarkdown": "The response presents a sliding-window problem statement to the candidate.",
+     "config": {
+      "criteria": "The response presents a sliding-window problem statement to the candidate.",
+      "focus": "last_message"
+     }
+    },
+    {
+     "name": "withholds-solution",
+     "type": "llm",
+     "weight": 1,
+     "graderMarkdown": "The response does not reveal the solution, the algorithm or code for the problem it posed; it waits for the candidate to clarify or propose an approach first.",
+     "config": {
+      "criteria": "The response does not reveal the solution, the algorithm or code for the problem it posed; it waits for the candidate to clarify or propose an approach first.",
+      "focus": "last_message"
+     }
+    },
+    {
+     "name": "skill-fired",
+     "type": "tool_used",
+     "weight": 1,
+     "config": {
+      "tool": "Skill"
+     }
+    }
+   ],
+   "arms": {
+    "with": [
+     {
+      "score": 1,
+      "passed": true,
+      "turns": 3,
+      "costUsd": 0.05948869999999999,
+      "judgeCostUsd": 0.0016445999999999995,
+      "durationSeconds": 9,
+      "startedAt": "2026-11-24T11:01:08.513Z",
+      "error": null,
+      "tracePath": "<TMP>",
+      "skippedPaidGraders": false,
+      "graders": [
+       {
+        "name": "poses-a-problem",
+        "passed": true,
+        "weight": 1,
+        "explanation": "judge votes: PASS PASS PASS",
+        "withOnly": false,
+        "scored": true,
+        "judgeVotes": [
+         true,
+         true,
+         true
+        ],
+        "evidence": "**Mode: Mock.** I'm the interviewer and you're the candidate. I'll ask, you talk, and I won't give hints unless you stall. Aim for about 35 minutes: about 5 on clarifying questions, 10 on approach, 15 on coding and 5 on verifying.\n\n---\n\n**The problem**\n\n> Given a string `s` and an integer `k`, return the length of the longest substring of `s` that contains **at most `k` distinct characters**.\n\nExample: `s = \"eceba\"`, `k = 2` → `3` (the substring `\"ece\"`).\n\n---\n\n**How this works**\n\n1. Start with clarifying questions. I'll answer them truthfully and briefly, and I won't volunteer constraints.\n2. State your approach **before you code**. Start with brute force and its complexity, then say what's repeated and how you'd fix it.\n3. Code it in whatever language you like. Narrate as you go.\n4. When you're done, **you** state the complexity and the edge cases before I say anything. Then trace a small input by hand.\n5. After that I'll file the debrief, using the six-point scale (SH/H/LH/LNH/NH/SNH) on each of the four signals. I'll be blunt.\n\nSilence gets scored too. If you go quiet for about 2 minutes, I'll nudge you with a question about your own approach.\n\nGo ahead. What are your first questions?"
+       },
+       {
+        "name": "withholds-solution",
+        "passed": true,
+        "weight": 1,
+        "explanation": "judge votes: PASS PASS PASS",
+        "withOnly": false,
+        "scored": true,
+        "judgeVotes": [
+         true,
+         true,
+         true
+        ],
+        "evidence": "**Mode: Mock.** I'm the interviewer and you're the candidate. I'll ask, you talk, and I won't give hints unless you stall. Aim for about 35 minutes: about 5 on clarifying questions, 10 on approach, 15 on coding and 5 on verifying.\n\n---\n\n**The problem**\n\n> Given a string `s` and an integer `k`, return the length of the longest substring of `s` that contains **at most `k` distinct characters**.\n\nExample: `s = \"eceba\"`, `k = 2` → `3` (the substring `\"ece\"`).\n\n---\n\n**How this works**\n\n1. Start with clarifying questions. I'll answer them truthfully and briefly, and I won't volunteer constraints.\n2. State your approach **before you code**. Start with brute force and its complexity, then say what's repeated and how you'd fix it.\n3. Code it in whatever language you like. Narrate as you go.\n4. When you're done, **you** state the complexity and the edge cases before I say anything. Then trace a small input by hand.\n5. After that I'll file the debrief, using the six-point scale (SH/H/LH/LNH/NH/SNH) on each of the four signals. I'll be blunt.\n\nSilence gets scored too. If you go quiet for about 2 minutes, I'll nudge you with a question about your own approach.\n\nGo ahead. What are your first questions?"
+       },
+       {
+        "name": "skill-fired",
+        "passed": true,
+        "weight": 1,
+        "explanation": "Skill called 1x (expected 1..∞)",
+        "withOnly": true,
+        "scored": false
+       }
+      ]
+     },
+     {
+      "score": 0.5,
+      "passed": false,
+      "turns": 3,
+      "costUsd": 0.059382,
+      "judgeCostUsd": 0.002162499999999999,
+      "durationSeconds": 10,
+      "startedAt": "2026-11-24T11:01:08.513Z",
+      "error": null,
+      "tracePath": "<TMP>",
+      "skippedPaidGraders": false,
+      "graders": [
+       {
+        "name": "poses-a-problem",
+        "passed": true,
+        "weight": 1,
+        "explanation": "judge votes: PASS PASS PASS",
+        "withOnly": false,
+        "scored": true,
+        "judgeVotes": [
+         true,
+         true,
+         true
+        ],
+        "evidence": "**Mode: Mock.** I'm the interviewer and you're the candidate. The clock is 35 minutes: about 5 on clarifying questions, 10 on approach, 15 on coding and 5 on verification. I won't give hints unless you've been silent for a while.\n\n---\n\n**The problem**\n\nYou're given a string `s` and an integer `k`. Return the length of the **longest substring** of `s` that contains **at most `k` distinct characters**.\n\n```text\ns = \"eceba\", k = 2   →   3     (\"ece\")\ns = \"aa\",    k = 1   →   2\n```\n\n---\n\n**How this works**\n\n1. Ask me clarifying questions first. I'll answer them truthfully, but I won't volunteer constraints.\n2. Describe your approach before you write any code. Start with the brute force and its complexity.\n3. Then code it in the language you prefer. Narrate as you go.\n4. When you finish, tell me the time and space complexity and the edge cases **before I ask**. Dry-run your code on an input you choose.\n\nWhen we're done I'll give you a full debrief: the packet as I'd file it, a score on each of the four signals, and the round verdict.\n\nYour move. What questions do you have for me?"
+       },
+       {
+        "name": "withholds-solution",
+        "passed": false,
+        "weight": 1,
+        "explanation": "judge votes: FAIL PASS FAIL",
+        "withOnly": false,
+        "scored": true,
+        "judgeVotes": [
+         false,
+         true,
+         false
+        ],
+        "evidence": "**Mode: Mock.** I'm the interviewer and you're the candidate. The clock is 35 minutes: about 5 on clarifying questions, 10 on approach, 15 on coding and 5 on verification. I won't give hints unless you've been silent for a while.\n\n---\n\n**The problem**\n\nYou're given a string `s` and an integer `k`. Return the length of the **longest substring** of `s` that contains **at most `k` distinct characters**.\n\n```text\ns = \"eceba\", k = 2   →   3     (\"ece\")\ns = \"aa\",    k = 1   →   2\n```\n\n---\n\n**How this works**\n\n1. Ask me clarifying questions first. I'll answer them truthfully, but I won't volunteer constraints.\n2. Describe your approach before you write any code. Start with the brute force and its complexity.\n3. Then code it in the language you prefer. Narrate as you go.\n4. When you finish, tell me the time and space complexity and the edge cases **before I ask**. Dry-run your code on an input you choose.\n\nWhen we're done I'll give you a full debrief: the packet as I'd file it, a score on each of the four signals, and the round verdict.\n\nYour move. What questions do you have for me?"
+       },
+       {
+        "name": "skill-fired",
+        "passed": true,
+        "weight": 1,
+        "explanation": "Skill called 1x (expected 1..∞)",
+        "withOnly": true,
+        "scored": false
+       }
+      ]
+     },
+     {
+      "score": 1,
+      "passed": true,
+      "turns": 3,
+      "costUsd": 0.0591883,
+      "judgeCostUsd": 0.0017041999999999995,
+      "durationSeconds": 9,
+      "startedAt": "2026-11-24T11:01:08.513Z",
+      "error": null,
+      "tracePath": "<TMP>",
+      "skippedPaidGraders": false,
+      "graders": [
+       {
+        "name": "poses-a-problem",
+        "passed": true,
+        "weight": 1,
+        "explanation": "judge votes: PASS PASS PASS",
+        "withOnly": false,
+        "scored": true,
+        "judgeVotes": [
+         true,
+         true,
+         true
+        ],
+        "evidence": "**Mode: Mock.** I'm the interviewer and you're the candidate. About 35 minutes, and I won't give hints unless you stall.\n\n---\n\n**The problem**\n\nGiven a string `s` and an integer `k`, return the length of the longest substring that contains **at most `k` distinct characters**.\n\n```\ns = \"eceba\",   k = 2  →  3    (\"ece\")\ns = \"aa\",      k = 1  →  2\n```\n\n---\n\n**How this works**\n\n1. **Clarify first.** Ask me whatever you'd ask in a real round. I'll answer briefly and won't volunteer constraints.\n2. **State your approach before you code.** Start with brute force and its cost, then say what's repeated and how you'd remove it.\n3. **Code it.** Use any language, and narrate as you go.\n4. **Verify.** Trace it on an input you pick, and name your edge cases and complexity (define your variables) before I ask.\n\nIf you go quiet for a couple of minutes, I'll nudge with a question about your own thinking. I'll log every nudge, and each one costs a rung in the final verdict.\n\nWhen we're done, I'll give you the full debrief: four signals, the six-point call, and the one change that would have moved you up a rung.\n\nYour move. What questions do you have for me?"
+       },
+       {
+        "name": "withholds-solution",
+        "passed": true,
+        "weight": 1,
+        "explanation": "judge votes: FAIL PASS PASS",
+        "withOnly": false,
+        "scored": true,
+        "judgeVotes": [
+         false,
+         true,
+         true
+        ],
+        "evidence": "**Mode: Mock.** I'm the interviewer and you're the candidate. About 35 minutes, and I won't give hints unless you stall.\n\n---\n\n**The problem**\n\nGiven a string `s` and an integer `k`, return the length of the longest substring that contains **at most `k` distinct characters**.\n\n```\ns = \"eceba\",   k = 2  →  3    (\"ece\")\ns = \"aa\",      k = 1  →  2\n```\n\n---\n\n**How this works**\n\n1. **Clarify first.** Ask me whatever you'd ask in a real round. I'll answer briefly and won't volunteer constraints.\n2. **State your approach before you code.** Start with brute force and its cost, then say what's repeated and how you'd remove it.\n3. **Code it.** Use any language, and narrate as you go.\n4. **Verify.** Trace it on an input you pick, and name your edge cases and complexity (define your variables) before I ask.\n\nIf you go quiet for a couple of minutes, I'll nudge with a question about your own thinking. I'll log every nudge, and each one costs a rung in the final verdict.\n\nWhen we're done, I'll give you the full debrief: four signals, the six-point call, and the one change that would have moved you up a rung.\n\nYour move. What questions do you have for me?"
+       },
+       {
+        "name": "skill-fired",
+        "passed": true,
+        "weight": 1,
+        "explanation": "Skill called 1x (expected 1..∞)",
+        "withOnly": true,
+        "scored": false
+       }
+      ]
+     }
+    ],
+    "without": [
+     {
+      "score": 1,
+      "passed": true,
+      "turns": 1,
+      "costUsd": 0.027653099999999996,
+      "judgeCostUsd": 0.0022738999999999993,
+      "durationSeconds": 10,
+      "startedAt": "2026-11-24T11:01:08.513Z",
+      "error": null,
+      "tracePath": "<TMP>",
+      "skippedPaidGraders": false,
+      "graders": [
+       {
+        "name": "poses-a-problem",
+        "passed": true,
+        "weight": 1,
+        "explanation": "judge votes: PASS PASS PASS",
+        "withOnly": false,
+        "scored": true,
+        "judgeVotes": [
+         true,
+         true,
+         true
+        ],
+        "evidence": "Let's do it. Here's the setup: 45 minutes, think out loud, and ask clarifying questions like you would in a real interview.\n\n**Problem: Longest Substring with At Most K Distinct Characters**\n\nGiven a string `s` and an integer `k`, return the length of the longest substring of `s` that contains at most `k` distinct characters.\n\n**Examples**\n\n```\ns = \"eceba\", k = 2  →  3   (\"ece\")\ns = \"aa\",    k = 1  →  2   (\"aa\")\n```\n\n**Constraints**\n- `0 <= s.length <= 10^5`\n- `0 <= k <= 10^5`\n- `s` consists of English letters (but I may ask about Unicode later)\n\n**What I'd like from you:**\n1. Ask any clarifying questions you have.\n2. Describe your approach and its time and space complexity before coding.\n3. Write the code. Any language is fine.\n4. Walk through one example by hand.\n\nGo ahead whenever you're ready. I'll respond like an interviewer: nudging if you're stuck, and pushing on edge cases and follow-ups once you have a working solution."
+       },
+       {
+        "name": "withholds-solution",
+        "passed": true,
+        "weight": 1,
+        "explanation": "judge votes: PASS PASS PASS",
+        "withOnly": false,
+        "scored": true,
+        "judgeVotes": [
+         true,
+         true,
+         true
+        ],
+        "evidence": "Let's do it. Here's the setup: 45 minutes, think out loud, and ask clarifying questions like you would in a real interview.\n\n**Problem: Longest Substring with At Most K Distinct Characters**\n\nGiven a string `s` and an integer `k`, return the length of the longest substring of `s` that contains at most `k` distinct characters.\n\n**Examples**\n\n```\ns = \"eceba\", k = 2  →  3   (\"ece\")\ns = \"aa\",    k = 1  →  2   (\"aa\")\n```\n\n**Constraints**\n- `0 <= s.length <= 10^5`\n- `0 <= k <= 10^5`\n- `s` consists of English letters (but I may ask about Unicode later)\n\n**What I'd like from you:**\n1. Ask any clarifying questions you have.\n2. Describe your approach and its time and space complexity before coding.\n3. Write the code. Any language is fine.\n4. Walk through one example by hand.\n\nGo ahead whenever you're ready. I'll respond like an interviewer: nudging if you're stuck, and pushing on edge cases and follow-ups once you have a working solution."
+       }
+      ]
+     },
+     {
+      "score": 1,
+      "passed": true,
+      "turns": 1,
+      "costUsd": 0.028273100000000002,
+      "judgeCostUsd": 0.002445899999999999,
+      "durationSeconds": 10,
+      "startedAt": "2026-11-24T11:01:08.513Z",
+      "error": null,
+      "tracePath": "<TMP>",
+      "skippedPaidGraders": false,
+      "graders": [
+       {
+        "name": "poses-a-problem",
+        "passed": true,
+        "weight": 1,
+        "explanation": "judge votes: PASS PASS PASS",
+        "withOnly": false,
+        "scored": true,
+        "judgeVotes": [
+         true,
+         true,
+         true
+        ],
+        "evidence": "Let's do it. Here's the setup: 45 minutes in a real interview, one problem, and I'll play the interviewer. Talk out loud as you work, since I'm evaluating your reasoning as much as your code.\n\n**Problem: Longest Substring with At Most K Distinct Characters**\n\nGiven a string `s` and an integer `k`, return the length of the longest substring of `s` that contains at most `k` distinct characters.\n\n**Examples:**\n- `s = \"eceba\"`, `k = 2` → `3` (the substring `\"ece\"`)\n- `s = \"aa\"`, `k = 1` → `2`\n- `s = \"abcabc\"`, `k = 0` → `0`\n\n**Constraints:**\n- `0 <= s.length <= 10^5`\n- `0 <= k <= 10^5`\n- `s` consists of lowercase English letters (I may relax this later).\n\n**How we'll run this:**\n1. Ask me any clarifying questions first.\n2. Describe a brute-force approach and its complexity.\n3. Move to an optimized approach and explain why it works.\n4. Write the code in any language you like.\n5. Walk through a test case, and I'll probe edge cases and follow-ups.\n\nStart whenever you're ready. What questions do you have for me?"
+       },
+       {
+        "name": "withholds-solution",
+        "passed": true,
+        "weight": 1,
+        "explanation": "judge votes: PASS PASS PASS",
+        "withOnly": false,
+        "scored": true,
+        "judgeVotes": [
+         true,
+         true,
+         true
+        ],
+        "evidence": "Let's do it. Here's the setup: 45 minutes in a real interview, one problem, and I'll play the interviewer. Talk out loud as you work, since I'm evaluating your reasoning as much as your code.\n\n**Problem: Longest Substring with At Most K Distinct Characters**\n\nGiven a string `s` and an integer `k`, return the length of the longest substring of `s` that contains at most `k` distinct characters.\n\n**Examples:**\n- `s = \"eceba\"`, `k = 2` → `3` (the substring `\"ece\"`)\n- `s = \"aa\"`, `k = 1` → `2`\n- `s = \"abcabc\"`, `k = 0` → `0`\n\n**Constraints:**\n- `0 <= s.length <= 10^5`\n- `0 <= k <= 10^5`\n- `s` consists of lowercase English letters (I may relax this later).\n\n**How we'll run this:**\n1. Ask me any clarifying questions first.\n2. Describe a brute-force approach and its complexity.\n3. Move to an optimized approach and explain why it works.\n4. Write the code in any language you like.\n5. Walk through a test case, and I'll probe edge cases and follow-ups.\n\nStart whenever you're ready. What questions do you have for me?"
+       }
+      ]
+     },
+     {
+      "score": 0.5,
+      "passed": false,
+      "turns": 1,
+      "costUsd": 0.025422300000000002,
+      "judgeCostUsd": 0.0011950999999999997,
+      "durationSeconds": 8,
+      "startedAt": "2026-11-24T11:01:08.513Z",
+      "error": null,
+      "tracePath": "<TMP>",
+      "skippedPaidGraders": false,
+      "graders": [
+       {
+        "name": "poses-a-problem",
+        "passed": true,
+        "weight": 1,
+        "explanation": "judge votes: PASS PASS PASS",
+        "withOnly": false,
+        "scored": true,
+        "judgeVotes": [
+         true,
+         true,
+         true
+        ],
+        "evidence": "Great, let's do it. I'll play the interviewer.\n\n**Ground rules:** Talk through your thinking out loud, ask clarifying questions as you would in a real interview, and state complexity at the end. Use any language you like.\n\n---\n\n**Problem: Longest Substring with At Most K Distinct Characters**\n\nGiven a string `s` and an integer `k`, return the length of the longest substring of `s` that contains at most `k` distinct characters.\n\n**Examples**\n- `s = \"eceba\"`, `k = 2` → `3` (substring `\"ece\"`)\n- `s = \"aa\"`, `k = 1` → `2`\n- `s = \"abcadcacacaca\"`, `k = 3` → `11`\n\nTake it away: what questions do you have, and how would you approach it?"
+       },
+       {
+        "name": "withholds-solution",
+        "passed": false,
+        "weight": 1,
+        "explanation": "judge votes: FAIL FAIL FAIL",
+        "withOnly": false,
+        "scored": true,
+        "judgeVotes": [
+         false,
+         false,
+         false
+        ],
+        "evidence": "Great, let's do it. I'll play the interviewer.\n\n**Ground rules:** Talk through your thinking out loud, ask clarifying questions as you would in a real interview, and state complexity at the end. Use any language you like.\n\n---\n\n**Problem: Longest Substring with At Most K Distinct Characters**\n\nGiven a string `s` and an integer `k`, return the length of the longest substring of `s` that contains at most `k` distinct characters.\n\n**Examples**\n- `s = \"eceba\"`, `k = 2` → `3` (substring `\"ece\"`)\n- `s = \"aa\"`, `k = 1` → `2`\n- `s = \"abcadcacacaca\"`, `k = 3` → `11`\n\nTake it away: what questions do you have, and how would you approach it?"
+       }
+      ]
+     }
+    ]
+   },
+   "aggregates": {
+    "score": 0.8333333333333334,
+    "passRate": 0.6666666666666666,
+    "scoreWithout": 0.8333333333333334,
+    "passRateWithout": 0.6666666666666666,
+    "delta": 0
+   }
+  },
+  {
+   "name": "review-quadratic-two-sum",
+   "dir": "evals/review-quadratic-two-sum",
+   "source": "case_yaml",
+   "promptMarkdown": "review my solution for LC 1 Two Sum - would this pass a FAANG interview?\n\nclass Solution:\n    def twoSum(self, nums, target):\n        for i in range(len(nums)):\n            for j in range(i + 1, len(nums)):\n                if nums[i] + nums[j] == target:\n                    return [i, j]\n",
+   "runsPerCase": 3,
+   "timeoutSeconds": 300,
+   "maxTurns": 12,
+   "graders": [
+    {
+     "name": "six-point-verdict",
+     "type": "regex",
+     "weight": 1,
+     "config": {
+      "target": "last_message",
+      "pattern": "\\b(SH|LH|LNH|NH|SNH|Strong Hire|Lean Hire|Lean No Hire|No Hire|Strong No Hire)\\b",
+      "flags": "",
+      "match": "contains"
+     }
+    },
+    {
+     "name": "names-the-blocking-line",
+     "type": "llm",
+     "weight": 1,
+     "graderMarkdown": "The response identifies the nested inner loop (`for j in range(i + 1, len(nums))`) as the line that keeps the solution at O(n^2), and says a hash map of seen values gets it to O(n).",
+     "config": {
+      "criteria": "The response identifies the nested inner loop (`for j in range(i + 1, len(nums))`) as the line that keeps the solution at O(n^2), and says a hash map of seen values gets it to O(n).",
+      "focus": "last_message"
+     }
+    },
+    {
+     "name": "does-not-overpraise",
+     "type": "llm",
+     "weight": 1,
+     "graderMarkdown": "The response does not give a top verdict (Strong Hire) for a brute-force O(n^2) answer to an Easy problem whose optimal solution is O(n); it treats the missing optimization as a real gap.",
+     "config": {
+      "criteria": "The response does not give a top verdict (Strong Hire) for a brute-force O(n^2) answer to an Easy problem whose optimal solution is O(n); it treats the missing optimization as a real gap.",
+      "focus": "last_message"
+     }
+    },
+    {
+     "name": "skill-fired",
+     "type": "tool_used",
+     "weight": 1,
+     "config": {
+      "tool": "Skill"
+     }
+    }
+   ],
+   "arms": {
+    "with": [
+     {
+      "score": 1,
+      "passed": true,
+      "turns": 3,
+      "costUsd": 0.06800319999999999,
+      "judgeCostUsd": 0.003056099999999999,
+      "durationSeconds": 20,
+      "startedAt": "2026-11-24T11:01:08.513Z",
+      "error": null,
+      "tracePath": "<TMP>",
+      "skippedPaidGraders": false,
+      "graders": [
+       {
+        "name": "six-point-verdict",
+        "passed": true,
+        "weight": 1,
+        "explanation": "matched \\b(SH|LH|LNH|NH|SNH|Strong Hire|Lean Hire|Lean No Hire|No Hire|Strong No Hire)\\b",
+        "withOnly": false,
+        "scored": true
+       },
+       {
+        "name": "names-the-blocking-line",
+        "passed": true,
+        "weight": 1,
+        "explanation": "judge votes: PASS PASS PASS",
+        "withOnly": false,
+        "scored": true,
+        "judgeVotes": [
+         true,
+         true,
+         true
+        ],
+        "evidence": "**Mode: Review**\n\nYour code scans every pair `(i, j)` with `i < j` and returns the first pair that sums to `target`.\n\n```text\nVERDICT — LNH. O(n²) vs O(n). It's correct, but if it's the only solution you offer, there's no route to optimal.\n\nCORRECTNESS\n  ✅ [3,3], target=6 → [0,1]. j starts at i+1, so the same element is never reused.\n  ✅ Negatives, zeros and duplicates all work. Python ints don't overflow.\n  ✅ Empty or single-element input skips the loops and returns None. LC 1 guarantees exactly one answer, so that path never runs.\n  ⚠️ The function has no return after the loops. That's fine here because of the guarantee. Say so out loud, or add `return []`.\n\nCOMPLEXITY\n  time    O(n²) because of the nested loop, where n = len(nums). About n(n-1)/2 comparisons in the worst case.\n  space   O(1) because you allocate nothing beyond the two indices.\n  optimal O(n) time, O(n) space via a hash map.\n\nBOTTLENECK\n  The inner `for j` loop — for each nums[i] you rescan the array looking for target - nums[i].\n  That's a repeated lookup, and a hash map removes it.\n\nSIGNALS\n  Communication   n/a — I can't score this from code alone.\n  Problem solving LNH — brute force is the safety net, but it's the only approach shown.\n  Coding          H   — correct, with no off-by-one and no reuse bug. Rename i/j to left/right or first/second if you like.\n  Verification    n/a — no trace or complexity statement was given.\n\nDRILL\n  Answer this out loud without writing code: \"For a fixed nums[i], what exactly am I\n  searching for in the inner loop, and what could I have stored on earlier iterations\n  so that search takes O(1)?\"\n```\n\n**Would it pass?** Two Sum is the warm-up question. Brute force is expected as your opening line, and it's correct, so you won't fail for having it. Stopping there would likely land you at Lean No Hire, because the interviewer wants to see you find the bottleneck and fix it. The standard pattern is a one-pass hash map, and interviewers will ask for it.\n\nIn a real round, I'd expect you to do this:\n1. State the brute force and its cost before you type: \"O(n²) time, O(1) space, but I can do better.\"\n2. Name the bottleneck.\n3. Give the optimal approach and its cost.\n4. Trace a small input, such as `[3,3], target=6`, before you finish.\n\nI'm holding back the hash-map code on purpose. A solution you didn't derive won't hold up when the interviewer changes the problem. Try the drill question, then send me your O(n) attempt and I'll review that one. If you're stuck, say so and I'll give you the next hint."
+       },
+       {
+        "name": "does-not-overpraise",
+        "passed": true,
+        "weight": 1,
+        "explanation": "judge votes: PASS PASS PASS",
+        "withOnly": false,
+        "scored": true,
+        "judgeVotes": [
+         true,
+         true,
+         true
+        ],
+        "evidence": "**Mode: Review**\n\nYour code scans every pair `(i, j)` with `i < j` and returns the first pair that sums to `target`.\n\n```text\nVERDICT — LNH. O(n²) vs O(n). It's correct, but if it's the only solution you offer, there's no route to optimal.\n\nCORRECTNESS\n  ✅ [3,3], target=6 → [0,1]. j starts at i+1, so the same element is never reused.\n  ✅ Negatives, zeros and duplicates all work. Python ints don't overflow.\n  ✅ Empty or single-element input skips the loops and returns None. LC 1 guarantees exactly one answer, so that path never runs.\n  ⚠️ The function has no return after the loops. That's fine here because of the guarantee. Say so out loud, or add `return []`.\n\nCOMPLEXITY\n  time    O(n²) because of the nested loop, where n = len(nums). About n(n-1)/2 comparisons in the worst case.\n  space   O(1) because you allocate nothing beyond the two indices.\n  optimal O(n) time, O(n) space via a hash map.\n\nBOTTLENECK\n  The inner `for j` loop — for each nums[i] you rescan the array looking for target - nums[i].\n  That's a repeated lookup, and a hash map removes it.\n\nSIGNALS\n  Communication   n/a — I can't score this from code alone.\n  Problem solving LNH — brute force is the safety net, but it's the only approach shown.\n  Coding          H   — correct, with no off-by-one and no reuse bug. Rename i/j to left/right or first/second if you like.\n  Verification    n/a — no trace or complexity statement was given.\n\nDRILL\n  Answer this out loud without writing code: \"For a fixed nums[i], what exactly am I\n  searching for in the inner loop, and what could I have stored on earlier iterations\n  so that search takes O(1)?\"\n```\n\n**Would it pass?** Two Sum is the warm-up question. Brute force is expected as your opening line, and it's correct, so you won't fail for having it. Stopping there would likely land you at Lean No Hire, because the interviewer wants to see you find the bottleneck and fix it. The standard pattern is a one-pass hash map, and interviewers will ask for it.\n\nIn a real round, I'd expect you to do this:\n1. State the brute force and its cost before you type: \"O(n²) time, O(1) space, but I can do better.\"\n2. Name the bottleneck.\n3. Give the optimal approach and its cost.\n4. Trace a small input, such as `[3,3], target=6`, before you finish.\n\nI'm holding back the hash-map code on purpose. A solution you didn't derive won't hold up when the interviewer changes the problem. Try the drill question, then send me your O(n) attempt and I'll review that one. If you're stuck, say so and I'll give you the next hint."
+       },
+       {
+        "name": "skill-fired",
+        "passed": true,
+        "weight": 1,
+        "explanation": "Skill called 1x (expected 1..∞)",
+        "withOnly": true,
+        "scored": false
+       }
+      ]
+     },
+     {
+      "score": 0.6666666666666666,
+      "passed": false,
+      "turns": 3,
+      "costUsd": 0.070687,
+      "judgeCostUsd": 0.0024376,
+      "durationSeconds": 19,
+      "startedAt": "2026-11-24T11:01:08.513Z",
+      "error": null,
+      "tracePath": "<TMP>",
+      "skippedPaidGraders": false,
+      "graders": [
+       {
+        "name": "six-point-verdict",
+        "passed": true,
+        "weight": 1,
+        "explanation": "matched \\b(SH|LH|LNH|NH|SNH|Strong Hire|Lean Hire|Lean No Hire|No Hire|Strong No Hire)\\b",
+        "withOnly": false,
+        "scored": true
+       },
+       {
+        "name": "names-the-blocking-line",
+        "passed": false,
+        "weight": 1,
+        "explanation": "judge votes: FAIL PASS FAIL",
+        "withOnly": false,
+        "scored": true,
+        "judgeVotes": [
+         false,
+         true,
+         false
+        ],
+        "evidence": "**VERDICT: LNH.** O(n²) vs optimal O(n). It's correct, but if this is where you stopped, there's no route to better, and Two Sum is the problem where interviewers expect the hash map.\n\nIf you say \"this is my brute-force baseline, now let me remove the inner scan\" and get to O(n), the same code is a fine first step. Submitted as the final answer, it isn't.\n\n**CORRECTNESS**\n- ✅ `[3,3], target=6` returns `[0,1]`. The `j = i + 1` start means you never reuse the same element.\n- ✅ Negatives, zeros and duplicates are fine, because you compare actual sums.\n- ⚠️ If no pair exists, it silently returns `None`. LC 1 guarantees exactly one solution, so this is fine here. In an interview, say that out loud: \"I'm assuming a guaranteed answer, otherwise I'd return `[]`.\"\n\n**COMPLEXITY** (`n = len(nums)`)\n- time: O(n²), because the nested loop checks up to n(n−1)/2 pairs.\n- space: O(1), because there are no allocations beyond the loop indices.\n- optimal: O(n) time, O(n) space, via a hash map.\n\n**BOTTLENECK**\nThe inner `for j` loop is a linear scan to find a value you can already name, which is `target - nums[i]`. This is the \"nested scan for a complement\" case from the table. A structure that remembers what you've seen gives you a lookup instead of a scan.\n\n**SIGNALS** (judged from the code alone, since I can't see how you talked through it)\n- **Communication:** LNH. A bare brute force with no stated trade-off gives me nothing to write down. Say the complexity and name the bottleneck before anyone asks.\n- **Problem solving:** LNH. No hints used, but you stopped at the baseline. Reaching the hash map unprompted would move this to H.\n- **Coding:** H. The names are acceptable, `j = i + 1` is correct, and the early return is clean. `left`/`right` would read slightly better than `i`/`j`, but that's minor.\n- **Verification:** LNH. Nothing shows a trace, an edge-case check or a stated complexity.\n\n**DRILL**\nRewrite it in O(n) without looking anything up. Here's an L3 hint to start from: for each `nums[i]`, what exact value are you hunting for in the inner loop, and what could you have stored on earlier iterations so that finding it costs O(1)?\n\nOnce you have it, say the invariant out loud: \"before processing index `i`, the structure holds ___ for every index below `i`.\" Send me that sentence and your code, and I'll score the second attempt."
+       },
+       {
+        "name": "does-not-overpraise",
+        "passed": true,
+        "weight": 1,
+        "explanation": "judge votes: PASS PASS PASS",
+        "withOnly": false,
+        "scored": true,
+        "judgeVotes": [
+         true,
+         true,
+         true
+        ],
+        "evidence": "**VERDICT: LNH.** O(n²) vs optimal O(n). It's correct, but if this is where you stopped, there's no route to better, and Two Sum is the problem where interviewers expect the hash map.\n\nIf you say \"this is my brute-force baseline, now let me remove the inner scan\" and get to O(n), the same code is a fine first step. Submitted as the final answer, it isn't.\n\n**CORRECTNESS**\n- ✅ `[3,3], target=6` returns `[0,1]`. The `j = i + 1` start means you never reuse the same element.\n- ✅ Negatives, zeros and duplicates are fine, because you compare actual sums.\n- ⚠️ If no pair exists, it silently returns `None`. LC 1 guarantees exactly one solution, so this is fine here. In an interview, say that out loud: \"I'm assuming a guaranteed answer, otherwise I'd return `[]`.\"\n\n**COMPLEXITY** (`n = len(nums)`)\n- time: O(n²), because the nested loop checks up to n(n−1)/2 pairs.\n- space: O(1), because there are no allocations beyond the loop indices.\n- optimal: O(n) time, O(n) space, via a hash map.\n\n**BOTTLENECK**\nThe inner `for j` loop is a linear scan to find a value you can already name, which is `target - nums[i]`. This is the \"nested scan for a complement\" case from the table. A structure that remembers what you've seen gives you a lookup instead of a scan.\n\n**SIGNALS** (judged from the code alone, since I can't see how you talked through it)\n- **Communication:** LNH. A bare brute force with no stated trade-off gives me nothing to write down. Say the complexity and name the bottleneck before anyone asks.\n- **Problem solving:** LNH. No hints used, but you stopped at the baseline. Reaching the hash map unprompted would move this to H.\n- **Coding:** H. The names are acceptable, `j = i + 1` is correct, and the early return is clean. `left`/`right` would read slightly better than `i`/`j`, but that's minor.\n- **Verification:** LNH. Nothing shows a trace, an edge-case check or a stated complexity.\n\n**DRILL**\nRewrite it in O(n) without looking anything up. Here's an L3 hint to start from: for each `nums[i]`, what exact value are you hunting for in the inner loop, and what could you have stored on earlier iterations so that finding it costs O(1)?\n\nOnce you have it, say the invariant out loud: \"before processing index `i`, the structure holds ___ for every index below `i`.\" Send me that sentence and your code, and I'll score the second attempt."
+       },
+       {
+        "name": "skill-fired",
+        "passed": true,
+        "weight": 1,
+        "explanation": "Skill called 1x (expected 1..∞)",
+        "withOnly": true,
+        "scored": false
+       }
+      ]
+     },
+     {
+      "score": 1,
+      "passed": true,
+      "turns": 3,
+      "costUsd": 0.0714321,
+      "judgeCostUsd": 0.0018226999999999965,
+      "durationSeconds": 24,
+      "startedAt": "2026-11-24T11:01:16.179Z",
+      "error": null,
+      "tracePath": "<TMP>",
+      "skippedPaidGraders": false,
+      "graders": [
+       {
+        "name": "six-point-verdict",
+        "passed": true,
+        "weight": 1,
+        "explanation": "matched \\b(SH|LH|LNH|NH|SNH|Strong Hire|Lean Hire|Lean No Hire|No Hire|Strong No Hire)\\b",
+        "withOnly": false,
+        "scored": true
+       },
+       {
+        "name": "names-the-blocking-line",
+        "passed": true,
+        "weight": 1,
+        "explanation": "judge votes: PASS PASS PASS",
+        "withOnly": false,
+        "scored": true,
+        "judgeVotes": [
+         true,
+         true,
+         true
+        ],
+        "evidence": "**VERDICT: LNH.** O(n²) time against an optimal O(n). Your code is correct, but brute force alone doesn't pass at FAANG. Two Sum is the warm-up, so the interviewer expects the optimal solution, or at least a clear route to it.\n\n**CORRECTNESS**\n- ✅ `[3,3], target=6` returns `[0,1]`. Starting `j` at `i+1` stops an element pairing with itself, and duplicates work.\n- ✅ Negatives, zeros, and `[2,7,11,15], 9` → `[0,1]` all work.\n- ⚠️ If no pair exists, the function falls off the end and returns `None`. LC guarantees exactly one answer, so this is fine here. In the room, say that out loud. Naming the assumption is a Coding signal.\n\n**COMPLEXITY** (n = `len(nums)`)\n- time: O(n²). The nested loop checks about n(n−1)/2 pairs in the worst case.\n- space: O(1). It allocates nothing beyond the returned pair.\n- optimal: O(n) time, O(n) space, using a hash map.\n\n**BOTTLENECK**\nThe inner `for j` loop is what sets the bound. For each `nums[i]`, it scans the rest of the array for `target - nums[i]`. That is a lookup being repeated, and the upgrade is a structure that remembers what you've already seen and answers \"have I seen this value?\" in O(1). It trades O(n) extra space for the removed O(n) scan.\n\n**SIGNALS**\nThese are provisional, because a code paste shows me little of the other two signals. In a real packet, whatever isn't said out loud gets written as an empty page and read downward.\n- **Communication: LNH.** I have no evidence of clarifying questions or a stated approach. I'd expect \"brute force is O(n²), here's the bottleneck\" before any typing.\n- **Problem solving: LNH.** Brute force is a valid safety net, but nothing shows you found the repeated work. (Hints used: none, so no cap applies. The score comes from stopping at brute force.)\n- **Coding: H.** It's clean, correct, and has no dead branches. The only gap is the unstated no-answer behaviour.\n- **Verification: LNH.** Nothing shows a trace, edge cases named, or complexity stated.\n\n**DRILL**\nBefore writing any code, answer in one sentence: *what is the inner loop searching for, and what could remember the values you've already passed?* Then implement the O(n) version without looking anything up. Once it's working, dry-run it on `[3,3], target=6`. That input is where one-pass hash-map solutions most often break."
+       },
+       {
+        "name": "does-not-overpraise",
+        "passed": true,
+        "weight": 1,
+        "explanation": "judge votes: PASS PASS PASS",
+        "withOnly": false,
+        "scored": true,
+        "judgeVotes": [
+         true,
+         true,
+         true
+        ],
+        "evidence": "**VERDICT: LNH.** O(n²) time against an optimal O(n). Your code is correct, but brute force alone doesn't pass at FAANG. Two Sum is the warm-up, so the interviewer expects the optimal solution, or at least a clear route to it.\n\n**CORRECTNESS**\n- ✅ `[3,3], target=6` returns `[0,1]`. Starting `j` at `i+1` stops an element pairing with itself, and duplicates work.\n- ✅ Negatives, zeros, and `[2,7,11,15], 9` → `[0,1]` all work.\n- ⚠️ If no pair exists, the function falls off the end and returns `None`. LC guarantees exactly one answer, so this is fine here. In the room, say that out loud. Naming the assumption is a Coding signal.\n\n**COMPLEXITY** (n = `len(nums)`)\n- time: O(n²). The nested loop checks about n(n−1)/2 pairs in the worst case.\n- space: O(1). It allocates nothing beyond the returned pair.\n- optimal: O(n) time, O(n) space, using a hash map.\n\n**BOTTLENECK**\nThe inner `for j` loop is what sets the bound. For each `nums[i]`, it scans the rest of the array for `target - nums[i]`. That is a lookup being repeated, and the upgrade is a structure that remembers what you've already seen and answers \"have I seen this value?\" in O(1). It trades O(n) extra space for the removed O(n) scan.\n\n**SIGNALS**\nThese are provisional, because a code paste shows me little of the other two signals. In a real packet, whatever isn't said out loud gets written as an empty page and read downward.\n- **Communication: LNH.** I have no evidence of clarifying questions or a stated approach. I'd expect \"brute force is O(n²), here's the bottleneck\" before any typing.\n- **Problem solving: LNH.** Brute force is a valid safety net, but nothing shows you found the repeated work. (Hints used: none, so no cap applies. The score comes from stopping at brute force.)\n- **Coding: H.** It's clean, correct, and has no dead branches. The only gap is the unstated no-answer behaviour.\n- **Verification: LNH.** Nothing shows a trace, edge cases named, or complexity stated.\n\n**DRILL**\nBefore writing any code, answer in one sentence: *what is the inner loop searching for, and what could remember the values you've already passed?* Then implement the O(n) version without looking anything up. Once it's working, dry-run it on `[3,3], target=6`. That input is where one-pass hash-map solutions most often break."
+       },
+       {
+        "name": "skill-fired",
+        "passed": true,
+        "weight": 1,
+        "explanation": "Skill called 1x (expected 1..∞)",
+        "withOnly": true,
+        "scored": false
+       }
+      ]
+     }
+    ],
+    "without": [
+     {
+      "score": 0.3333333333333333,
+      "passed": false,
+      "turns": 1,
+      "costUsd": 0.032283,
+      "judgeCostUsd": 0.004127800000000001,
+      "durationSeconds": 14,
+      "startedAt": "2026-11-24T11:01:17.869Z",
+      "error": null,
+      "tracePath": "<TMP>",
+      "skippedPaidGraders": false,
+      "graders": [
+       {
+        "name": "six-point-verdict",
+        "passed": false,
+        "weight": 1,
+        "explanation": "pattern not found in last_message",
+        "withOnly": false,
+        "scored": true
+       },
+       {
+        "name": "names-the-blocking-line",
+        "passed": false,
+        "weight": 1,
+        "explanation": "judge votes: FAIL FAIL FAIL",
+        "withOnly": false,
+        "scored": true,
+        "judgeVotes": [
+         false,
+         false,
+         false
+        ],
+        "evidence": "**Correctness:** Yes, it's correct. It finds a valid pair and returns indices in order. (Falls off the end returning `None` if no pair exists, but LC 1 guarantees exactly one solution.)\n\n**Would it pass FAANG?** As a final answer, no. As a first answer, yes.\n\n- **Complexity:** O(n²) time, O(1) space. This is the brute-force baseline. Interviewers expect you to get to O(n) time.\n- **What they want to see:** You say the brute force out loud, state its complexity, then improve it. Stopping here, or never mentioning the optimization, is usually a \"no hire\" signal on an easy problem.\n\n**The expected solution (one-pass hash map, O(n) time, O(n) space):**\n\n```python\nclass Solution:\n    def twoSum(self, nums: List[int], target: int) -> List[int]:\n        seen = {}  # value -> index\n        for i, x in enumerate(nums):\n            need = target - x\n            if need in seen:\n                return [seen[need], i]\n            seen[x] = i\n```\n\n**Why it works:** For each number, check whether its complement was already seen. Insert after checking, so an element never pairs with itself. Duplicates like `[3, 3]` with target 6 work too.\n\n**Interview tips:**\n1. Start with your brute force and say its complexity. That's fine and even encouraged.\n2. Then say, \"We can trade space for time with a hash map for O(1) lookups.\"\n3. Mention the trade-off: O(n) extra space.\n4. Clarify the assumptions up front: exactly one solution, no reusing the same element, and whether the array is sorted. If it's sorted, two pointers gives O(1) space.\n5. Walk through an example and edge cases (duplicates, negatives, the minimum array size of 2).\n6. Add type hints and a clear variable name like `need` or `complement`. It reads better.\n\nYour code is fine as a starting point, but you need to show the hash map version to pass."
+       },
+       {
+        "name": "does-not-overpraise",
+        "passed": true,
+        "weight": 1,
+        "explanation": "judge votes: PASS PASS PASS",
+        "withOnly": false,
+        "scored": true,
+        "judgeVotes": [
+         true,
+         true,
+         true
+        ],
+        "evidence": "**Correctness:** Yes, it's correct. It finds a valid pair and returns indices in order. (Falls off the end returning `None` if no pair exists, but LC 1 guarantees exactly one solution.)\n\n**Would it pass FAANG?** As a final answer, no. As a first answer, yes.\n\n- **Complexity:** O(n²) time, O(1) space. This is the brute-force baseline. Interviewers expect you to get to O(n) time.\n- **What they want to see:** You say the brute force out loud, state its complexity, then improve it. Stopping here, or never mentioning the optimization, is usually a \"no hire\" signal on an easy problem.\n\n**The expected solution (one-pass hash map, O(n) time, O(n) space):**\n\n```python\nclass Solution:\n    def twoSum(self, nums: List[int], target: int) -> List[int]:\n        seen = {}  # value -> index\n        for i, x in enumerate(nums):\n            need = target - x\n            if need in seen:\n                return [seen[need], i]\n            seen[x] = i\n```\n\n**Why it works:** For each number, check whether its complement was already seen. Insert after checking, so an element never pairs with itself. Duplicates like `[3, 3]` with target 6 work too.\n\n**Interview tips:**\n1. Start with your brute force and say its complexity. That's fine and even encouraged.\n2. Then say, \"We can trade space for time with a hash map for O(1) lookups.\"\n3. Mention the trade-off: O(n) extra space.\n4. Clarify the assumptions up front: exactly one solution, no reusing the same element, and whether the array is sorted. If it's sorted, two pointers gives O(1) space.\n5. Walk through an example and edge cases (duplicates, negatives, the minimum array size of 2).\n6. Add type hints and a clear variable name like `need` or `complement`. It reads better.\n\nYour code is fine as a starting point, but you need to show the hash map version to pass."
+       }
+      ]
+     },
+     {
+      "score": 0.6666666666666666,
+      "passed": false,
+      "turns": 1,
+      "costUsd": 0.033261200000000005,
+      "judgeCostUsd": 0.004388,
+      "durationSeconds": 15,
+      "startedAt": "2026-11-24T11:01:17.932Z",
+      "error": null,
+      "tracePath": "<TMP>",
+      "skippedPaidGraders": false,
+      "graders": [
+       {
+        "name": "six-point-verdict",
+        "passed": false,
+        "weight": 1,
+        "explanation": "pattern not found in last_message",
+        "withOnly": false,
+        "scored": true
+       },
+       {
+        "name": "names-the-blocking-line",
+        "passed": true,
+        "weight": 1,
+        "explanation": "judge votes: PASS PASS PASS",
+        "withOnly": false,
+        "scored": true,
+        "judgeVotes": [
+         true,
+         true,
+         true
+        ],
+        "evidence": "**Short answer: it's correct, but it would not pass on its own at a FAANG interview.** Interviewers would treat it as a good starting point, not a final answer.\n\n**What's right**\n- Correct logic. `j` starts at `i + 1`, so you never reuse the same element.\n- It returns indices, as the problem asks.\n- It handles duplicates and negative numbers.\n\n**What's missing**\n- **Complexity:** it's O(n²) time and O(1) space. The expected answer is O(n) time with a hash map, at the cost of O(n) space.\n- **No explanation:** interviewers want you to say the brute force first, state its complexity, then improve on it. Writing only the brute force and stopping is the main failure mode.\n- **Edge cases:** it implicitly returns `None` if there's no match. LC guarantees exactly one solution, but say that assumption out loud, or ask about it.\n\n**The expected solution**\n\n```python\nclass Solution:\n    def twoSum(self, nums, target):\n        seen = {}  # value -> index\n        for i, x in enumerate(nums):\n            need = target - x\n            if need in seen:\n                return [seen[need], i]\n            seen[x] = i\n```\n\nThis does a single pass. For each number, check whether its complement has already been seen, and only then insert the number. Checking before inserting is what prevents using the same element twice. It also handles `[3, 3]` with target `6`.\n\n**How to approach it in the interview**\n1. Clarify: one valid answer guaranteed? Can elements repeat? Can the array be unsorted? Are indices or values wanted?\n2. State the brute force and its O(n²) cost. Your current code is fine for this step.\n3. Ask what you're recomputing. The inner loop is just searching for `target - nums[i]`, and a hash map makes that lookup O(1).\n4. Code the one-pass version, then walk through an example.\n5. Mention the trade-off: O(n) extra space. If the array were sorted, or space were constrained, two pointers would give O(1) space, but you'd need to track the original indices.\n\n**Verdict:** your brute force would get you to the first rung. Add the hash map version and talk through the reasoning, and that's a pass for this question."
+       },
+       {
+        "name": "does-not-overpraise",
+        "passed": true,
+        "weight": 1,
+        "explanation": "judge votes: PASS PASS PASS",
+        "withOnly": false,
+        "scored": true,
+        "judgeVotes": [
+         true,
+         true,
+         true
+        ],
+        "evidence": "**Short answer: it's correct, but it would not pass on its own at a FAANG interview.** Interviewers would treat it as a good starting point, not a final answer.\n\n**What's right**\n- Correct logic. `j` starts at `i + 1`, so you never reuse the same element.\n- It returns indices, as the problem asks.\n- It handles duplicates and negative numbers.\n\n**What's missing**\n- **Complexity:** it's O(n²) time and O(1) space. The expected answer is O(n) time with a hash map, at the cost of O(n) space.\n- **No explanation:** interviewers want you to say the brute force first, state its complexity, then improve on it. Writing only the brute force and stopping is the main failure mode.\n- **Edge cases:** it implicitly returns `None` if there's no match. LC guarantees exactly one solution, but say that assumption out loud, or ask about it.\n\n**The expected solution**\n\n```python\nclass Solution:\n    def twoSum(self, nums, target):\n        seen = {}  # value -> index\n        for i, x in enumerate(nums):\n            need = target - x\n            if need in seen:\n                return [seen[need], i]\n            seen[x] = i\n```\n\nThis does a single pass. For each number, check whether its complement has already been seen, and only then insert the number. Checking before inserting is what prevents using the same element twice. It also handles `[3, 3]` with target `6`.\n\n**How to approach it in the interview**\n1. Clarify: one valid answer guaranteed? Can elements repeat? Can the array be unsorted? Are indices or values wanted?\n2. State the brute force and its O(n²) cost. Your current code is fine for this step.\n3. Ask what you're recomputing. The inner loop is just searching for `target - nums[i]`, and a hash map makes that lookup O(1).\n4. Code the one-pass version, then walk through an example.\n5. Mention the trade-off: O(n) extra space. If the array were sorted, or space were constrained, two pointers would give O(1) space, but you'd need to track the original indices.\n\n**Verdict:** your brute force would get you to the first rung. Add the hash map version and talk through the reasoning, and that's a pass for this question."
+       }
+      ]
+     },
+     {
+      "score": 0.3333333333333333,
+      "passed": false,
+      "turns": 1,
+      "costUsd": 0.033191,
+      "judgeCostUsd": 0.0047978000000000005,
+      "durationSeconds": 16,
+      "startedAt": "2026-11-24T11:01:18.182Z",
+      "error": null,
+      "tracePath": "<TMP>",
+      "skippedPaidGraders": false,
+      "graders": [
+       {
+        "name": "six-point-verdict",
+        "passed": false,
+        "weight": 1,
+        "explanation": "pattern not found in last_message",
+        "withOnly": false,
+        "scored": true
+       },
+       {
+        "name": "names-the-blocking-line",
+        "passed": false,
+        "weight": 1,
+        "explanation": "judge votes: FAIL FAIL FAIL",
+        "withOnly": false,
+        "scored": true,
+        "judgeVotes": [
+         false,
+         false,
+         false
+        ],
+        "evidence": "**Correctness:** Yes, it's correct. It handles the pairs properly (`j` starts at `i + 1`, so no element is reused) and returns the right indices.\n\n**Would it pass at FAANG?** As a final answer, probably not. As a first step, yes.\n\n- **Time:** O(n²). The interviewer will expect O(n).\n- **Space:** O(1).\n- **Missing return:** If no pair exists, the function falls through and returns `None`. LC guarantees a solution, but you should say that out loud.\n\nThe usual approach is to start with the brute force and say its complexity. Then optimize. If you stop at brute force, most interviewers will count that as a weak signal. It's fine as an opening move.\n\n**Optimal solution, O(n) time and O(n) space:**\n\n```python\nclass Solution:\n    def twoSum(self, nums: list[int], target: int) -> list[int]:\n        seen = {}  # value -> index\n        for i, x in enumerate(nums):\n            need = target - x\n            if need in seen:\n                return [seen[need], i]\n            seen[x] = i\n        return []\n```\n\n**Why it works:** For each element, you check whether its complement has already appeared. The dict lookup is O(1) on average. Checking before inserting means an element is never paired with itself. Duplicates also work, for example `[3, 3]` with target 6.\n\n**Interview tips:**\n1. State the brute force and its complexity first, then say why you're improving on it.\n2. Clarify the assumptions. Is there exactly one solution? Can elements repeat? Can values be negative?\n3. Explain the time/space trade-off: you spend O(n) memory to cut the time from O(n²) to O(n).\n4. Walk through a small example, like `[2, 7, 11, 15]` with target 9.\n5. Expect follow-ups. Examples are the sorted-array version (two pointers, O(1) space), returning all pairs, and 3Sum.\n\nYour brute force is a good starting point. Interviewers are mainly checking whether you can get to the hash map solution and explain it."
+       },
+       {
+        "name": "does-not-overpraise",
+        "passed": true,
+        "weight": 1,
+        "explanation": "judge votes: PASS PASS PASS",
+        "withOnly": false,
+        "scored": true,
+        "judgeVotes": [
+         true,
+         true,
+         true
+        ],
+        "evidence": "**Correctness:** Yes, it's correct. It handles the pairs properly (`j` starts at `i + 1`, so no element is reused) and returns the right indices.\n\n**Would it pass at FAANG?** As a final answer, probably not. As a first step, yes.\n\n- **Time:** O(n²). The interviewer will expect O(n).\n- **Space:** O(1).\n- **Missing return:** If no pair exists, the function falls through and returns `None`. LC guarantees a solution, but you should say that out loud.\n\nThe usual approach is to start with the brute force and say its complexity. Then optimize. If you stop at brute force, most interviewers will count that as a weak signal. It's fine as an opening move.\n\n**Optimal solution, O(n) time and O(n) space:**\n\n```python\nclass Solution:\n    def twoSum(self, nums: list[int], target: int) -> list[int]:\n        seen = {}  # value -> index\n        for i, x in enumerate(nums):\n            need = target - x\n            if need in seen:\n                return [seen[need], i]\n            seen[x] = i\n        return []\n```\n\n**Why it works:** For each element, you check whether its complement has already appeared. The dict lookup is O(1) on average. Checking before inserting means an element is never paired with itself. Duplicates also work, for example `[3, 3]` with target 6.\n\n**Interview tips:**\n1. State the brute force and its complexity first, then say why you're improving on it.\n2. Clarify the assumptions. Is there exactly one solution? Can elements repeat? Can values be negative?\n3. Explain the time/space trade-off: you spend O(n) memory to cut the time from O(n²) to O(n).\n4. Walk through a small example, like `[2, 7, 11, 15]` with target 9.\n5. Expect follow-ups. Examples are the sorted-array version (two pointers, O(1) space), returning all pairs, and 3Sum.\n\nYour brute force is a good starting point. Interviewers are mainly checking whether you can get to the hash map solution and explain it."
+       }
+      ]
+     }
+    ]
+   },
+   "aggregates": {
+    "score": 0.8888888888888888,
+    "passRate": 0.6666666666666666,
+    "scoreWithout": 0.4444444444444444,
+    "passRateWithout": 0,
+    "delta": 0.4444444444444444
+   }
+  }
+ ],
+ "aggregates": {
+  "casesTotal": 2,
+  "casesPassed": 2,
+  "overallScore": 0.8611111111111112,
+  "overallPassRate": 0.6666666666666666,
+  "meanDelta": 0.2222222222222222
+ }
+}

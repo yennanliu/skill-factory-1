@@ -1,0 +1,33 @@
+schema_version: "1.1"
+name: review-quadratic-two-sum
+description: Review an O(n^2) Two Sum. Expect a six-point verdict and the blocking line named.
+tags: [judged]
+execution:
+  prompt: |
+    review my solution for LC 1 Two Sum - would this pass a FAANG interview?
+
+    class Solution:
+        def twoSum(self, nums, target):
+            for i in range(len(nums)):
+                for j in range(i + 1, len(nums)):
+                    if nums[i] + nums[j] == target:
+                        return [i, j]
+  max_turns: 12
+  allowed_tools: [Read, Glob, Grep, Skill]
+graders:
+  - name: six-point-verdict
+    type: regex
+    pattern: '\b(SH|LH|LNH|NH|SNH|Strong Hire|Lean Hire|Lean No Hire|No Hire|Strong No Hire)\b'
+  - name: names-the-blocking-line
+    type: llm
+    criteria: >-
+      The response identifies the nested inner loop (`for j in range(i + 1, len(nums))`) as the
+      line that keeps the solution at O(n^2), and says a hash map of seen values gets it to O(n).
+  - name: does-not-overpraise
+    type: llm
+    criteria: >-
+      The response does not give a top verdict (Strong Hire) for a brute-force O(n^2) answer to an
+      Easy problem whose optimal solution is O(n); it treats the missing optimization as a real gap.
+  - name: skill-fired
+    type: tool_used
+    tool: Skill
