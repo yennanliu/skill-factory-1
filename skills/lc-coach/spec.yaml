@@ -1,0 +1,34 @@
+name: lc-coach
+version: 1.0.0
+tier: domain
+domain: leetcode
+owner: yennanliu
+goal: >-
+  Coach a FAANG-style coding interview: score a solution on the six-point scale, write the
+  interviewer's debrief, teach the fundamentals, dry-run code and recommend sibling problems.
+triggers:
+  - "review my solution"
+  - "would this pass?"
+  - "what's my verdict?"
+  - "why is this O(n^2)?"
+  - "mock interview me"
+  - "what should I do after LC 239?"
+outputs:
+  - a verdict on the SH/H/LH/LNH/NH/SNH scale with the four signals
+  - the line that blocks the optimal complexity, when there is one
+  - sibling problems to drill next
+tools:
+  required: [Read, Glob, Grep]
+  forbidden: []
+  scripts: []
+targets:
+  agents: [claude-code, codex, opencode, gemini-cli]
+  models: [claude-sonnet-5-5, claude-opus-5-5]
+budget:
+  max_body_lines: 500
+  target_cost_usd: 0.20
+evals:
+  min_pass_rate: 0.7
+  max_pass_rate: 0.95
+  runs: 5
+side_effects: none

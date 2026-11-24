@@ -1,0 +1,31 @@
+name: lc-add
+version: 1.0.0
+tier: domain
+domain: leetcode
+owner: yennanliu
+goal: >-
+  File a LeetCode solution into the CS_basics repo the way existing ones are filed.
+triggers:
+  - "add LC <number> to <Pattern_Dir>"
+  - "/lc-add <number> <Pattern_Dir>"
+  - "add this solution and update the README"
+  - "file yesterday's contest Q1"
+outputs:
+  - leetcode_python/<Pattern_Dir>/<slug>.py in the house layout (docstring, V0 with IDEA block, time/space line)
+  - a smoke test run against the problem's examples
+  - a README row inserted in sorted position
+tools:
+  required: [Read, Glob, Grep, Bash, Write, Edit]
+  forbidden: []
+  scripts: []
+targets:
+  agents: [claude-code]
+  models: [claude-sonnet-5-5, claude-opus-5-5]
+budget:
+  max_body_lines: 500
+  target_cost_usd: 0.15
+evals:
+  min_pass_rate: 0.7
+  max_pass_rate: 0.95
+  runs: 5
+side_effects: local
