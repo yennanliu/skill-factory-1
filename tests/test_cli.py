@@ -90,6 +90,31 @@ def test_eval_cli(repo, monkeypatch) -> None:  # type: ignore[no-untyped-def]
     assert "c: 4/5 (80%)" in ok.output and "baseline 0%" in ok.output
 
 
+def test_report_and_statusline_cli(repo, monkeypatch, tmp_path) -> None:  # type: ignore[no-untyped-def]
+    import shutil
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    (repo / "hooks").mkdir()
+    shutil.copy(root / "hooks" / "sf_statusline.py", repo / "hooks")
+    monkeypatch.chdir(repo)
+    monkeypatch.setenv("SF_HOME", str(tmp_path / "home"))
+    rep = runner.invoke(app, ["report", "--out", "out/r.html"])
+    assert rep.exit_code == 0, rep.output
+    assert (repo / "out" / "r.html").read_text().startswith("<!doctype html>")
+    settings = tmp_path / "settings.json"
+    inst = runner.invoke(
+        app, ["statusline", "install", "--settings", str(settings), "--yes", "--budget", "2"]
+    )
+    assert inst.exit_code == 0, inst.output
+    assert "statusLine" in settings.read_text()
+    assert (tmp_path / "home" / "config.json").read_text().count('"session_budget_usd": 2') == 1
+    declined = runner.invoke(
+        app, ["statusline", "install", "--settings", str(tmp_path / "other.json")], input="n\n"
+    )
+    assert declined.exit_code == 1 and not (tmp_path / "other.json").exists()
+
+
 def test_release_reports_rebuild_failure(repo, monkeypatch) -> None:  # type: ignore[no-untyped-def]
     monkeypatch.chdir(repo)
     import skill_factory.cli as cli

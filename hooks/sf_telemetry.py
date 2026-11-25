@@ -114,7 +114,8 @@ def build_event(payload: dict[str, Any], base: Path) -> dict[str, Any] | None:
     if qualified:
         plugin, skill = _split(qualified)
         if session_id:
-            _write_state(base, session_id, {**state, "skill": qualified})
+            # `skill` drives error attribution (cleared at turn end); `last_skill` is for display
+            _write_state(base, session_id, {**state, "skill": qualified, "last_skill": skill})
         return {
             **event,
             "event": "skill_invoked",

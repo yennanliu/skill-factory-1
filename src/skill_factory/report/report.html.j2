@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Skill Factory Report</title>
+<style>
+:root {
+  --bg: #fafaf9; --fg: #1c1917; --muted: #78716c; --card: #ffffff; --line: #e7e5e4;
+  --ok: #15803d; --warn: #b45309; --bad: #b91c1c; --accent: #2563eb;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1c1917; --fg: #f5f5f4; --muted: #a8a29e; --card: #292524; --line: #44403c;
+    --ok: #4ade80; --warn: #fbbf24; --bad: #f87171; --accent: #60a5fa;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg);
+  font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 64px; }
+h1 { font-size: 22px; margin: 0 0 4px; } h2 { font-size: 16px; margin: 32px 0 8px; }
+.sub { color: var(--muted); margin: 0 0 20px; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.kpi, .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+.kpi b { display: block; font-size: 20px; } .kpi span { color: var(--muted); font-size: 12px; }
+a { color: var(--accent); text-decoration: none; } a:hover { text-decoration: underline; }
+.scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--line);
+  border-radius: 8px; overflow: hidden; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-size: 12px; color: var(--muted); font-weight: 600; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.tag { display: inline-block; padding: 0 6px; border-radius: 4px; font-size: 12px; border: 1px solid var(--line); }
+.ok { color: var(--ok); } .warn { color: var(--warn); } .bad { color: var(--bad); } .muted { color: var(--muted); }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; }
+.card h3 { margin: 0; font-size: 15px; } .card p { margin: 4px 0 8px; color: var(--muted); }
+.card dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; margin: 0; font-size: 13px; }
+.card dt { color: var(--muted); } .card dd { margin: 0; }
+.spark { width: 120px; height: 24px; } .spark polyline { fill: none; stroke: var(--accent); stroke-width: 1.5; }
+code { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
+footer { margin-top: 32px; color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<main>
+<h1>Skill Factory report</h1>
+<p class="sub">Telemetry since {{ since.strftime('%Y-%m-%d %H:%M') }} UTC · generated {{ generated.strftime('%Y-%m-%d %H:%M') }} UTC</p>
+
+<div class="kpis">
+  <div class="kpi"><b>{{ rows|length }}</b><span>skills in repo</span></div>
+  <div class="kpi"><b>{{ total_calls }}</b><span>calls to repo skills</span></div>
+  <div class="kpi"><b>{{ total_cost|money }}</b><span>cost attributed to repo skills</span></div>
+  <div class="kpi"><b>{{ evaluated }}/{{ rows|length }}</b><span>skills with eval results</span></div>
+</div>
+
+<h2>Skills</h2>
+<div class="scroll"><table>
+<thead><tr>
+  <th>skill</th><th>tier</th><th class="num">calls</th><th class="num">model/user</th>
+  <th class="num">cost/call</th><th class="num">p90</th><th class="num">errors</th>
+  <th>eval</th><th class="num">pass</th><th class="num">baseline</th><th>verdict</th><th>last {{ days }} days</th>
+</tr></thead>
+<tbody>
+{% for r in rows %}
+<tr>
+  <td><a href="#{{ r.name }}">{{ r.name }}</a> <span class="muted">{{ r.version }}</span></td>
+  <td><span class="tag">{{ r.tier }}</span></td>
+  <td class="num">{{ r.usage.calls }}</td>
+  <td class="num">{{ r.usage.model_calls }}/{{ r.usage.user_calls }}</td>
+  <td class="num {{ 'bad' if r.over_budget }}">{{ r.usage.cost_mean|money }}</td>
+  <td class="num">{{ r.usage.cost_p90|money }}</td>
+  <td class="num {{ 'warn' if r.usage.tool_errors }}">{{ r.usage.tool_errors }}</td>
+  {% if r.eval %}
+  <td class="{{ {'ok': 'ok', 'too-easy': 'warn'}.get(r.eval.status, 'bad') }}">{{ r.eval.status }}</td>
+  <td class="num">{{ r.eval.pass_rate|pct }}</td>
+  <td class="num">{{ r.eval.baseline_pass_rate|pct }}</td>
+  <td class="{{ 'bad' if r.eval.verdict == 'no measurable value' else ('ok' if r.eval.verdict == 'helps' else 'muted') }}">{{ r.eval.verdict }}</td>
+  {% else %}
+  <td class="muted">not evaluated</td><td class="num">-</td><td class="num">-</td><td></td>
+  {% endif %}
+  <td>{{ r.usage.daily|sparkline|safe }}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table></div>
+
+<h2>Details</h2>
+<div class="cards">
+{% for r in rows %}
+<section class="card" id="{{ r.name }}">
+  <h3>{{ r.name }} <span class="muted">{{ r.version }} · {{ r.plugin }}</span></h3>
+  <p>{{ r.goal }}</p>
+  <dl>
+    <dt>owner</dt><dd>{{ r.owner }}</dd>
+    <dt>context cost</dt><dd>~{{ r.always_on_tokens }} tok always-on · ~{{ r.on_invoke_tokens }} tok per call</dd>
+    <dt>usage</dt><dd>{{ r.usage.calls }} calls · {{ r.usage.sessions }} sessions · {{ "-" if r.usage.repos is none else r.usage.repos }} repos ·
+      {{ r.usage.active_weeks }} active week{{ '' if r.usage.active_weeks == 1 else 's' }}{{ ' · retained' if r.usage.retained }}</dd>
+    <dt>cost</dt><dd>{{ r.usage.cost_total|money }} total · {{ r.usage.cost_mean|money }} mean · {{ r.usage.cost_p90|money }} p90
+      {% if r.target_cost_usd %}· target {{ r.target_cost_usd|money }}{% endif %}
+      {% if r.usage.requests_mean %}· {{ '%.1f'|format(r.usage.requests_mean) }} requests/call{% endif %}</dd>
+    <dt>versions in use</dt><dd>{{ r.usage.versions|join(', ') or '-' }}</dd>
+    <dt>used with</dt><dd>{% for other, n in r.usage.co_used[:3] %}{{ other }} ({{ n }}){{ ', ' if not loop.last }}{% else %}-{% endfor %}</dd>
+    <dt>lint waivers</dt><dd>{{ r.waivers|join(', ') or 'none' }}</dd>
+    {% if r.eval %}
+    <dt>eval</dt><dd>{{ r.eval.when }} · {{ r.eval.model or 'default model' }} · {{ r.eval.runs }} runs · {{ r.eval.cost_usd|money }}{% if r.eval.partial %} · <span class="bad">partial run</span>{% endif %}{% if r.eval.version and r.eval.version != r.version %} · <span class="warn">ran on {{ r.eval.version }}</span>{% endif %}<br>
+      pass {{ r.eval.pass_rate|pct }} (95% CI {{ r.eval.interval[0]|pct }}–{{ r.eval.interval[1]|pct }}) vs baseline {{ r.eval.baseline_pass_rate|pct }}</dd>
+    <dt>cases</dt><dd>
+      {% for c in r.eval.cases %}<code>{{ c.name }}</code> {{ c.passes }}/{{ c.runs }}{% if c.baseline_pass_rate is not none %} (base {{ c.baseline_pass_rate|pct }}){% endif %}{% if c.fired_runs is not none and c.fired_runs < c.runs %} <span class="warn">fired {{ c.fired_runs }}/{{ c.runs }}</span>{% endif %}<br>{% endfor %}
+    </dd>
+    {% endif %}
+  </dl>
+</section>
+{% endfor %}
+</div>
+
+{% if others %}
+<h2>Other skills seen in telemetry</h2>
+<div class="scroll"><table>
+<thead><tr><th>skill</th><th class="num">calls</th><th class="num">model/user</th><th class="num">cost total</th><th class="num">errors</th></tr></thead>
+<tbody>
+{% for q, u in others|dictsort %}
+<tr><td>{{ q }}</td><td class="num">{{ u.calls }}</td><td class="num">{{ u.model_calls }}/{{ u.user_calls }}</td>
+<td class="num">{{ u.cost_total|money }}</td><td class="num">{{ u.tool_errors }}</td></tr>
+{% endfor %}
+</tbody>
+</table></div>
+{% endif %}
+
+<footer>
+Sources: hook events <code>{{ sources.events }}</code> · OTel logs <code>{{ sources.otel }}</code> · evals <code>{{ sources.runs }}</code>.
+Cost per call comes from OTel <code>api_request.cost_usd</code> grouped by <code>skill.name</code>; context cost is estimated at 4 chars/token.
+</footer>
+</main>
+</body>
+</html>
