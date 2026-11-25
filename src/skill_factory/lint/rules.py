@@ -62,7 +62,8 @@ def finding(r: Rule, skill: SkillDir, message: str, hint: str = "", **kw: object
 
 # --- helpers -----------------------------------------------------------------------------
 
-FENCE_RE = re.compile(r"^```.*?^```", re.S | re.M)
+# Fences may be indented (e.g. a code block inside a numbered list item).
+FENCE_RE = re.compile(r"^[ \t]{0,4}```.*?^[ \t]{0,4}```", re.S | re.M)
 NUMBERED_RE = re.compile(r"^(?:#{2,4}\s+(?:Step\s+)?\d+[.)]|\s{0,3}\d+[.)]\s)", re.M)
 VERIFY_RE = re.compile(
     r"\b(verify|verif|confirm|check|ensure|assert|make sure|expect|smoke[- ]test|validate)",
@@ -258,8 +259,11 @@ def _no_shared_tmp(skill: SkillDir, r: Rule) -> Iterator[Finding]:
 
 @rule("SF011", "scripts-runnable", "error", "referenced scripts exist and are executable")
 def _scripts_runnable(skill: SkillDir, r: Rule) -> Iterator[Finding]:
+    # Scripts the skill runs: everything in spec tools.scripts, plus paths used inside code blocks.
+    # Prose mentions (e.g. another skill's script given as an example) are not checked.
     referenced = set(skill.spec.tools.scripts)
-    referenced |= set(re.findall(r"(?<![\w/])(scripts/[\w./\-]+\.(?:py|sh|js|ts))", skill.body))
+    for block in FENCE_RE.findall(skill.body):
+        referenced |= set(re.findall(r"(?<![\w/])(scripts/[\w./\-]+\.(?:py|sh|js|ts))", block))
     for rel in sorted(referenced):
         p = skill.path / rel
         if not p.is_file():

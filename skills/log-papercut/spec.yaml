@@ -1,0 +1,32 @@
+name: log-papercut
+version: 0.1.0
+tier: always-on
+owner: yennanliu
+goal: >-
+  Let the agent file a short structured report ("papercut") whenever a skill, script or tool
+  misbehaves, is confusing, or needs a workaround, so the owner can fix it. Use it even when the
+  agent recovered on its own.
+triggers:
+  - a skill's instructions were wrong, stale or ambiguous
+  - a script or command a skill told you to run failed or returned something unexpected
+  - you needed a workaround to finish the user's task
+  - "log a papercut for <skill>"
+outputs:
+  - one JSON line appended by scripts/log_papercut.py (skill, tried, expected, happened, suggested
+    fix, severity)
+  - a one-line note to the user that a papercut was filed, then the user's task continues
+tools:
+  required: [Bash]
+  forbidden: [Write, Edit]
+  scripts: [scripts/log_papercut.py]
+targets:
+  agents: [claude-code]
+  models: [claude-sonnet-5-5]
+budget:
+  max_body_lines: 120
+  target_cost_usd: 0.02
+evals:
+  min_pass_rate: 0.7
+  max_pass_rate: 0.95
+  runs: 3
+side_effects: local

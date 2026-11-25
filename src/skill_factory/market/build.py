@@ -68,8 +68,34 @@ def _write_json(path: Path, data: Any) -> None:
     path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
 
 
-def _copy_skill(skill: SkillDir, dest: Path) -> None:
+def catalog(skills: list[SkillDir], market: Market) -> dict[str, Any]:
+    """Deterministic marketplace catalog (no local eval data, so builds match across machines)."""
+    return {
+        "marketplace": market.name,
+        "skills": [
+            {
+                "skill": s.name,
+                "plugin": s.spec.plugin_name,
+                "tier": s.spec.tier,
+                "version": s.spec.version,
+                "goal": " ".join(s.spec.goal.split()),
+                "triggers": s.spec.triggers,
+                "description": str(s.frontmatter.get("description", "")),
+                "install": f"/plugin install {s.spec.plugin_name}@{market.name}",
+            }
+            for s in sorted(skills, key=lambda s: s.name)
+        ],
+    }
+
+
+def write_catalog(dest_skill_dir: Path, data: dict[str, Any]) -> None:
+    _write_json(dest_skill_dir / "references" / "catalog.json", data)
+
+
+def _copy_skill(skill: SkillDir, dest: Path, cat: dict[str, Any] | None = None) -> None:
     shutil.copytree(skill.path, dest, ignore=lambda _d, names: [n for n in names if n in EXCLUDE])
+    if skill.spec.catalog and cat is not None:
+        write_catalog(dest, cat)
     md = dest / "SKILL.md"
     # A compiled SKILL.md already carries a spec-hash marker; replace it with the build stamp.
     text = MARKER_RE.sub("", md.read_text()).rstrip("\n")
@@ -101,6 +127,7 @@ def _render(root: Path, out: Path) -> BuildResult:
     for s in skills:
         by_plugin[s.spec.plugin_name].append(s)
 
+    cat = catalog(skills, market)
     missing = sorted(set(by_plugin) - set(market.plugins))
     if missing:
         raise BuildError(
@@ -116,7 +143,7 @@ def _render(root: Path, out: Path) -> BuildResult:
             continue
         pdir = out / "plugins" / pname
         for s in members:
-            _copy_skill(s, pdir / "skills" / s.name)
+            _copy_skill(s, pdir / "skills" / s.name, cat)
         for asset in pdef.assets:
             src = root / asset
             if not src.is_dir():

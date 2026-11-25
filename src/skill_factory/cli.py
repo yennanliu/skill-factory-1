@@ -765,6 +765,188 @@ def judge_calibrate(
         raise typer.Exit(1)
 
 
+papercuts_app = typer.Typer(
+    help="Triage papercuts filed by the log-papercut skill.", no_args_is_help=True
+)
+app.add_typer(papercuts_app, name="papercuts")
+
+
+@papercuts_app.command("list")
+def papercuts_list(
+    skill: Annotated[str | None, typer.Option(help="Only this skill.")] = None,
+    status: Annotated[
+        Literal["open", "promoted", "closed", "all"], typer.Option(help="Filter by status.")
+    ] = "open",
+) -> None:
+    """List papercuts, most severe first."""
+    from skill_factory import papercuts as pc
+
+    state = pc.load_state(sf_home())
+    cuts = [
+        c
+        for c in pc.load(sf_home())
+        if (skill is None or c.short_skill == skill)
+        and (status == "all" or pc.status_of(c.id, state) == status)
+    ]
+    if not cuts:
+        console.print(f"no {status} papercuts ({pc.inbox_path(sf_home())})")
+        return
+    table = Table("id", "filed", "skill", "sev", "status", "what happened")
+    for c in sorted(cuts, key=lambda c: (pc.SEVERITY_ORDER.get(c.severity, 9), c.ts)):
+        table.add_row(
+            c.id, c.ts[:10], c.short_skill, c.severity, pc.status_of(c.id, state), c.happened[:70]
+        )
+    console.print(table)
+
+
+@papercuts_app.command("group")
+def papercuts_group() -> None:
+    """Papercut counts per skill and severity."""
+    from skill_factory import papercuts as pc
+
+    table = Table("skill", "reports", "high", "med", "low")
+    for name, n, sev in pc.group(pc.load(sf_home())):
+        table.add_row(name, str(n), str(sev["high"]), str(sev["med"]), str(sev["low"]))
+    console.print(table)
+
+
+@papercuts_app.command("show")
+def papercuts_show(pid: Annotated[str, typer.Argument(help="Papercut id (prefix ok).")]) -> None:
+    """Show one papercut in full."""
+    from skill_factory import papercuts as pc
+
+    cut = pc.find(pc.load(sf_home()), pid)
+    if cut is None:
+        err.print(f"[red]error:[/] no unique papercut {pid!r}")
+        raise typer.Exit(2)
+    for k, v in cut.__dict__.items():
+        console.print(f"[bold]{k}[/]: {v}")
+
+
+@papercuts_app.command("promote")
+def papercuts_promote(pid: Annotated[str, typer.Argument(help="Papercut id (prefix ok).")]) -> None:
+    """Turn a papercut into a draft regression eval case for its skill."""
+    from skill_factory import papercuts as pc
+
+    root = _root()
+    cut = pc.find(pc.load(sf_home()), pid)
+    if cut is None:
+        err.print(f"[red]error:[/] no unique papercut {pid!r}")
+        raise typer.Exit(2)
+    try:
+        case = pc.promote(root, cut)
+    except (FileNotFoundError, FileExistsError) as e:
+        err.print(f"[red]error:[/] {e}")
+        raise typer.Exit(1) from e
+    pc.mark(sf_home(), cut.id, "promoted", str(case.relative_to(root)))
+    console.print(f"wrote {case.relative_to(root)}")
+    console.print(
+        "next: make the prompt reproduce it, confirm it fails "
+        f"(`uv run sf eval {cut.short_skill} --case papercut-{cut.id}`), fix the skill, "
+        "re-run until it passes, then open a PR."
+    )
+
+
+@papercuts_app.command("close")
+def papercuts_close(
+    pid: Annotated[str, typer.Argument(help="Papercut id (prefix ok).")],
+    note: Annotated[str, typer.Option(help="Why it's closed.")] = "",
+) -> None:
+    """Close a papercut (fixed, duplicate, or won't fix)."""
+    from skill_factory import papercuts as pc
+
+    cut = pc.find(pc.load(sf_home()), pid)
+    if cut is None:
+        err.print(f"[red]error:[/] no unique papercut {pid!r}")
+        raise typer.Exit(2)
+    pc.mark(sf_home(), cut.id, "closed", note)
+    console.print(f"closed {cut.id}")
+
+
+def _search_root(repo: Path | None) -> Path:
+    import json as _json
+    import os
+
+    if repo:
+        return repo
+    if os.environ.get("SF_REPO"):
+        return Path(os.environ["SF_REPO"]).expanduser()
+    cfg = sf_home() / "config.json"
+    if cfg.is_file() and _json.loads(cfg.read_text()).get("repo"):
+        return Path(_json.loads(cfg.read_text())["repo"]).expanduser()
+    return _root()
+
+
+@app.command("search")
+def search_cmd(
+    query: Annotated[str, typer.Argument(help="What you want to do.")],
+    limit: Annotated[int, typer.Option(help="Max results.")] = 5,
+    as_json: Annotated[bool, typer.Option("--json", help="Machine-readable output.")] = False,
+    repo: Annotated[
+        Path | None, typer.Option(help="skill-factory repo (default: $SF_REPO, config, cwd).")
+    ] = None,
+) -> None:
+    """Find skills for a task (text match weighted by eval quality) with install commands."""
+    import json as _json
+
+    from skill_factory.market.build import load_market
+    from skill_factory.search import search
+
+    root = _search_root(repo)
+    skills = []
+    for p in discover(root):
+        try:
+            skills.append(load_skill(p))
+        except SkillError:
+            continue
+    hits = search(query, skills, root / "runs", load_market(root).name, limit)
+    if as_json:
+        print(_json.dumps([h.__dict__ for h in hits], indent=2))
+        return
+    if not hits:
+        console.print("no matching skills")
+        return
+    table = Table("skill", "score", "quality", "tier", "install")
+    for h in hits:
+        table.add_row(h.skill, f"{h.score:.2f}", f"{h.quality:.0%}", h.tier, h.install)
+    console.print(table)
+
+
+@app.command("analyze")
+def analyze_cmd(
+    since: Annotated[str, typer.Option(help="Window: 1d, 7d, 4w.")] = "7d",
+    top: Annotated[int, typer.Option(help="Sessions to show.")] = 10,
+    otel_logs: Annotated[Path | None, typer.Option(help="OTel logs file.")] = None,
+) -> None:
+    """Rank sessions by cost and flag wasteful patterns, with a suggested fix for each."""
+    from skill_factory.analyze import analyze
+    from skill_factory.telemetry.ingest import connect
+    from skill_factory.telemetry.stats import parse_since
+
+    try:
+        start = parse_since(since)
+    except ValueError as e:
+        err.print(f"[red]error:[/] {e}")
+        raise typer.Exit(2) from e
+    ol = otel_logs or _otel_dir() / "logs.jsonl"
+    sessions = analyze(connect(Path("/nonexistent"), ol), start)
+    if not sessions:
+        console.print(f"no sessions since {start:%Y-%m-%d} (OTel logs: {ol}; see `sf otel up`)")
+        return
+    flagged = [s for s in sessions if s.findings]
+    console.print(
+        f"{len(sessions)} sessions since {start:%Y-%m-%d}, "
+        f"${sum(s.cost for s in sessions):.2f} total; {len(flagged)} with findings"
+    )
+    for s in sessions[:top]:
+        console.print(
+            f"[bold]{s.id[:8]}[/] ${s.cost:.4f} · {s.requests} requests"
+            + (f" · {s.start:%Y-%m-%d %H:%M}" if s.start else "")
+        )
+        for f in s.findings:
+            console.print(f"  [yellow]{f.pattern}[/]: {f.detail}\n    fix: {f.fix}")
+
+
 @app.callback()
 def main() -> None:
     """Skill factory CLI."""

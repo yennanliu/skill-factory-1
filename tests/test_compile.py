@@ -245,3 +245,26 @@ def test_get_backend() -> None:
     assert backend_mod.get_backend("api").name == "api"
     with pytest.raises(ValueError, match="unknown backend"):
         backend_mod.get_backend("nope")
+
+
+def test_case_yaml_drops_keys_the_grader_type_does_not_take() -> None:
+    from ruamel.yaml import YAML
+
+    case = {
+        **CASE,
+        "name": "x",
+        "graders": [
+            {"name": "judge", "type": "llm", "criteria": "c", "max": 0, "tool": "Bash"},
+            {"name": "never", "type": "tool_used", "tool": "Write", "max": 0, "criteria": "z"},
+            {"name": "no-file", "type": "file_exists", "path": "**/SKILL.md", "max": 0, "min": 0},
+        ],
+    }
+    graders = YAML(typ="safe").load(case_yaml(case))["graders"]
+    assert graders[0] == {"name": "judge", "type": "llm", "criteria": "c"}
+    assert graders[1] == {"name": "never", "type": "tool_used", "tool": "Write", "max": 0, "min": 0}
+    assert graders[2] == {
+        "name": "no-file",
+        "type": "file_exists",
+        "path": "**/SKILL.md",
+        "exists": False,
+    }

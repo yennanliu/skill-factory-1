@@ -215,3 +215,16 @@ def test_repo_skills_lint_clean() -> None:
 
     report = lint_skills(discover(ROOT))
     assert report.findings == [], [f"{f.skill} {f.rule} {f.message}" for f in report.findings]
+
+
+def test_sf006_accepts_indented_fences(good: Path) -> None:
+    add_spec(good, "tools:\n  required: [Bash]\n")
+    md = GOOD_MD.replace("   ```bash\n   make build\n   ```\n", "")
+    md = md.replace("2. Confirm", "2. Run it:\n\n   ```bash\n   make check\n   ```\n\n   Confirm")
+    set_md(good, md)
+    assert rules_hit(good) == set()
+
+
+def test_sf011_ignores_prose_mentions(good: Path) -> None:
+    set_md(good, GOOD_MD + "\nFor example `scripts/build.sh` of another skill may fail.\n")
+    assert rules_hit(good) == set()

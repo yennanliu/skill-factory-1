@@ -1,0 +1,36 @@
+name: find-skills
+version: 0.1.0
+tier: always-on
+owner: yennanliu
+goal: >-
+  Before writing a new skill or starting a repetitive workflow from scratch, check whether a
+  skill for the task already exists in the skill-factory marketplace, and tell the user how to
+  install the best match.
+triggers:
+  - "is there a skill for <task>?"
+  - "find a skill that can <task>"
+  - "what skills do we have for <topic>?"
+  - the user asks you to write a new skill (check for an existing one first)
+outputs:
+  - the top matches from scripts/find_skills.py (a search over the bundled references/catalog.json)
+    with skill name, goal, score and the exact `/plugin install ...` command
+  - a clear "no existing skill fits" when nothing scores well, so a new one can be written
+  - "when the user asked you to write a new skill, the search result comes first and you stop
+    there; ask whether to install a match or go ahead with a new skill, and create no files until
+    they answer (papercut f72c61e8)"
+tools:
+  required: [Bash]
+  forbidden: [Write, Edit]
+  scripts: [scripts/find_skills.py]
+targets:
+  agents: [claude-code]
+  models: [claude-sonnet-5-5]
+budget:
+  max_body_lines: 120
+  target_cost_usd: 0.02
+evals:
+  min_pass_rate: 0.7
+  max_pass_rate: 0.95
+  runs: 3
+side_effects: none
+catalog: true  # sf build bundles references/catalog.json

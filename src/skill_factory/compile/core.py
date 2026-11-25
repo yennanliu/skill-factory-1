@@ -19,6 +19,7 @@ from skill_factory.market.build import MARKER_RE
 from skill_factory.spec import SkillDir, discover, load_skill, spec_sha256
 
 MAX_EXEMPLAR_LINES = 220
+MAX_SCRIPT_LINES = 60
 
 GRADER = {
     "type": "object",
@@ -83,7 +84,9 @@ tool_used (tool, optional min/max; max 0 means "never used"), file_exists (path 
 negative check (a forbidden tool or action with max 0) when the spec forbids something.
 
 Follow the house style of the example skills. Do not invent tools, scripts or files the spec \
-does not mention."""
+does not mention. Any path that starts with scripts/ is checked to exist in THIS skill, so never \
+use scripts/... paths in examples about other skills; call the skill's own scripts with the exact \
+flags and values their usage text shows."""
 
 
 @dataclass
@@ -120,6 +123,14 @@ def build_prompt(skill: SkillDir, exemplars: list[SkillDir], feedback: list[str]
         "## Spec (spec.yaml)\n```yaml\n" + skill.spec_path.read_text() + "```",
         "## Lint rules the result must pass\n" + lint_checklist(),
     ]
+    for rel in skill.spec.tools.scripts:
+        script = skill.path / rel
+        if script.is_file():
+            head = "\n".join(script.read_text().splitlines()[:MAX_SCRIPT_LINES])
+            parts.append(
+                f"## Script {rel} (use exactly this interface: flag names and allowed values)\n"
+                f"```\n{head}\n```"
+            )
     for ex in exemplars:
         lines = ex.skill_md.read_text().splitlines()
         text = "\n".join(lines[:MAX_EXEMPLAR_LINES])
@@ -191,11 +202,16 @@ def case_yaml(case: dict[str, Any]) -> str:
     graders = []
     for g in case["graders"]:
         entry = {k: v for k, v in g.items() if v not in (None, "")}
+        if entry.get("type") == "file_exists" and entry.get("max") == 0:
+            entry["exists"] = False  # "no such file may be created", in the harness's terms
+        # The harness rejects keys a grader type doesn't take (e.g. max on an llm grader).
+        allowed = GRADER_KEYS.get(str(entry.get("type")), set())
+        entry = {k: v for k, v in entry.items() if k in allowed | {"name", "type"}}
         if entry.get("type") == "regex" and "pattern" in entry:
             entry["pattern"], entry["flags"] = js_regex(entry["pattern"], entry.get("flags", ""))
             if not entry["flags"]:
                 del entry["flags"]
-        if entry.get("max") == 0:
+        if entry.get("type") == "tool_used" and entry.get("max") == 0:
             entry["min"] = 0  # the harness defaults min to 1, which would make "never" unpassable
         graders.append(entry)
     doc = {
@@ -222,6 +238,12 @@ def case_yaml(case: dict[str, Any]) -> str:
     return buf.getvalue()
 
 
+GRADER_KEYS = {
+    "regex": {"pattern", "flags", "match", "target", "weight"},
+    "tool_used": {"tool", "input_match", "min", "max", "weight"},
+    "file_exists": {"path", "exists", "weight"},
+    "llm": {"criteria", "focus", "weight"},
+}
 INLINE_FLAGS = re.compile(r"^\(\?([imsx]+)\)")
 
 

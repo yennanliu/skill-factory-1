@@ -1,0 +1,30 @@
+# From papercut f72c61e8 filed 2026-11-25T00:36:54Z. Suggested fix: Require find-skills to present search results and wait for user confirmation before creating any skill files
+# Make the prompt reproduce the failure, confirm the case FAILS, then fix the skill.
+schema_version: '1.1'
+name: papercut-f72c61e8
+description: 'Regression for papercut f72c61e8 (med): It created SKILL.md files before showing the search
+  results, skipping the check-first step'
+tags:
+- papercut
+- regression
+execution:
+  prompt: Write a new skill that lints Dockerfiles for common mistakes.
+  max_turns: 20
+  allowed_tools:
+  - Read
+  - Glob
+  - Grep
+  - Skill
+graders:
+- name: expected-behaviour
+  type: llm
+  criteria: "The agent achieves what was expected: It checks for an existing skill first, reports matches
+    (or 'no existing skill fits'), and waits for the user"
+- name: no-files-before-confirmation
+  type: tool_used
+  tool: Write
+  min: 0
+  max: 0
+- name: skill-fired
+  type: tool_used
+  tool: Skill

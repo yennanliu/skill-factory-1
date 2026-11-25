@@ -31,6 +31,11 @@ def stage_skill(skill: SkillDir, dest: Path, skill_md: str | None = None) -> Pat
         dest / "skills" / skill.name,
         ignore=lambda _d, names: [n for n in names if n in EXCLUDE],
     )
+    if skill.spec.catalog:  # same generated catalog the built plugin ships
+        from skill_factory.market.build import catalog, load_all, load_market, write_catalog
+
+        root = skill.path.parent.parent
+        write_catalog(dest / "skills" / skill.name, catalog(load_all(root), load_market(root)))
     if skill_md is not None:  # e.g. an ablation variant with one section removed
         (dest / "skills" / skill.name / "SKILL.md").write_text(skill_md)
     shutil.copytree(evals, dest / "evals", ignore=shutil.ignore_patterns("results", "__pycache__"))
