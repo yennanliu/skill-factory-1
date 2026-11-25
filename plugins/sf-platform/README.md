@@ -9,3 +9,9 @@ Always-on platform skills and telemetry hooks.
 ```
 /plugin install sf-platform --marketplace yennanliu/skill-factory-1
 ```
+
+or, once the marketplace is added (`/plugin marketplace add yennanliu/skill-factory-1`):
+
+```
+/plugin install sf-platform@skill-factory
+```

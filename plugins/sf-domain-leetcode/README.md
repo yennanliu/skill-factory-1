@@ -10,6 +10,12 @@ LeetCode practice skills - filing solutions and interview coaching.
 /plugin install sf-domain-leetcode --marketplace yennanliu/skill-factory-1
 ```
 
+or, once the marketplace is added (`/plugin marketplace add yennanliu/skill-factory-1`):
+
+```
+/plugin install sf-domain-leetcode@skill-factory
+```
+
 ## Skills
 
 | Skill | Version | Goal |

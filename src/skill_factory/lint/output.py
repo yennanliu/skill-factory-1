@@ -37,11 +37,20 @@ def as_json(report: LintReport) -> str:
     )
 
 
+def _esc_data(s: str) -> str:
+    return s.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+
+
+def _esc_prop(s: str) -> str:
+    return _esc_data(s).replace(":", "%3A").replace(",", "%2C")
+
+
 def as_github(report: LintReport) -> str:
     out = []
     for f in report.findings:
         level = "error" if f.severity == "error" else "warning"
         line = f",line={f.line}" if f.line else ""
         msg = f"{f.rule} {f.message}" + (f" — {f.hint}" if f.hint else "")
-        out.append(f"::{level} file=skills/{f.skill}/{f.file}{line},title=sf lint::{msg}")
+        file = _esc_prop(f"skills/{f.skill}/{f.file}")
+        out.append(f"::{level} file={file}{line},title=sf lint::{_esc_data(msg)}")
     return "\n".join(out)
