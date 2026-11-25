@@ -86,6 +86,7 @@ class CaseSummary:
     mean_score: float | None
     mean_cost_usd: float | None
     mean_turns: float | None
+    baseline_mean_cost_usd: float | None = None
 
     @property
     def pass_rate(self) -> float | None:
@@ -134,6 +135,23 @@ class SkillSummary:
         return sum(c.baseline_passes for c in self.cases) / n if n else None
 
     @property
+    def mean_cost_usd(self) -> float | None:
+        """Mean agent cost per run in the with-skill arm (judge cost excluded)."""
+        xs = [c.mean_cost_usd * c.runs for c in self.cases if c.mean_cost_usd is not None]
+        n = sum(c.runs for c in self.cases if c.mean_cost_usd is not None)
+        return sum(xs) / n if n else None
+
+    @property
+    def baseline_mean_cost_usd(self) -> float | None:
+        xs = [
+            c.baseline_mean_cost_usd * c.baseline_runs
+            for c in self.cases
+            if c.baseline_mean_cost_usd is not None
+        ]
+        n = sum(c.baseline_runs for c in self.cases if c.baseline_mean_cost_usd is not None)
+        return sum(xs) / n if n else None
+
+    @property
     def status(self) -> Status:
         if self.partial:
             return "partial"  # a truncated sample isn't representative; never report it as ok
@@ -157,6 +175,8 @@ class SkillSummary:
             "pass_rate": self.pass_rate,
             "interval_95": [lo, hi],
             "baseline_pass_rate": self.baseline_pass_rate,
+            "mean_cost_usd": self.mean_cost_usd,
+            "baseline_mean_cost_usd": self.baseline_mean_cost_usd,
             "runs": self.runs,
             "total_cost_usd": self.total_cost_usd,
             "partial": self.partial,
@@ -208,6 +228,7 @@ def summarise_case(case: Case) -> CaseSummary:
         mean_score=_mean([r.score for r in runs if r.score is not None]),
         mean_cost_usd=_mean([r.cost_usd for r in runs]),
         mean_turns=_mean([float(r.turns) for r in runs if r.turns is not None]),
+        baseline_mean_cost_usd=_mean([r.cost_usd for r in base]),
     )
 
 

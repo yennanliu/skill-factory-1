@@ -106,14 +106,14 @@ def test_verdicts(tmp_path: Path) -> None:
     for i, (rate, base, verdict) in enumerate(
         [(0.8, 0.8, "no measurable value"), (0.8, 0.7, "small lift"), (0.9, 0.5, "helps")]
     ):
-        write_summary(tmp_path, f"s{i}", "t", rate, base)
+        write_summary(tmp_path, f"s{i}", "2026-11-01T00-00-00Z", rate, base)
         e = latest_eval(tmp_path, f"s{i}")
         assert e is not None and e.verdict == verdict
 
 
 def test_rows_and_render_for_repo_skills(tmp_path: Path) -> None:
     skills = [load_skill(p) for p in discover(ROOT)]
-    write_summary(tmp_path, "lc-add", "t", 0.9, 0.6)
+    write_summary(tmp_path, "lc-add", "2026-11-01T00-00-00Z", 0.9, 0.6)
     usage = usage_by_skill(connect(Path("/none"), OTEL_LOGS), EPOCH, NOW, 14)
     rows, others = build_rows(skills, usage, tmp_path)
     assert {r.name for r in rows} == {
@@ -140,6 +140,14 @@ def test_sparkline() -> None:
     assert "<polyline" not in sparkline([0, 0, 0])
     svg = sparkline([0, 2, 1])
     assert 'aria-label="calls per day, max 2"' in svg and "<polyline" in svg
+
+
+def test_latest_eval_ignores_labelled_runs(tmp_path: Path) -> None:
+    write_summary(tmp_path, "x", "2026-11-01T00-00-00Z", 0.8, 0.4)
+    write_summary(tmp_path, "x", "2026-11-02T00-00-00Z-bench-claude-haiku-5-5", 0.1, 0.1)
+    write_summary(tmp_path, "x", "2026-11-03T00-00-00Z-ablation-minus-steps", 0.2, 0.2)
+    e = latest_eval(tmp_path, "x")
+    assert e is not None and e.when == "2026-11-01T00-00-00Z"
 
 
 def test_both_sources_dont_double_count(tmp_path: Path) -> None:

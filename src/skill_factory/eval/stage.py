@@ -12,7 +12,7 @@ from skill_factory.spec import SkillDir
 SHARED_DIR = "_shared"
 
 
-def stage_skill(skill: SkillDir, dest: Path) -> Path:
+def stage_skill(skill: SkillDir, dest: Path, skill_md: str | None = None) -> Path:
     """Create `dest/` as a plugin named `sf-eval-<skill>` holding the skill and its eval cases.
 
     The plugin name differs from the shipped plugins so an installed copy of the same skill can't
@@ -31,6 +31,8 @@ def stage_skill(skill: SkillDir, dest: Path) -> Path:
         dest / "skills" / skill.name,
         ignore=lambda _d, names: [n for n in names if n in EXCLUDE],
     )
+    if skill_md is not None:  # e.g. an ablation variant with one section removed
+        (dest / "skills" / skill.name / "SKILL.md").write_text(skill_md)
     shutil.copytree(evals, dest / "evals", ignore=shutil.ignore_patterns("results", "__pycache__"))
     # The harness only lets a case reference files inside its own directory, so shared scaffold
     # scripts and fixtures in evals/_shared/ are copied into every case as _shared/.

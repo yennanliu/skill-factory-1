@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -85,6 +86,7 @@ class SkillRow:
     waivers: list[str]
     usage: Usage
     eval: EvalSnapshot | None
+    ablation: dict[str, Any] | None = None
 
     @property
     def over_budget(self) -> bool:
@@ -99,8 +101,19 @@ def approx_tokens(text: str) -> int:
     return round(len(text) / 4)
 
 
+PLAIN_RUN = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}Z$")
+
+
+def latest_ablation(runs_dir: Path, skill: str) -> dict[str, Any] | None:
+    files = sorted((runs_dir / skill).glob("*-ablation.json"))
+    return dict(json.loads(files[-1].read_text())) if files else None
+
+
 def latest_eval(runs_dir: Path, skill: str) -> EvalSnapshot | None:
-    summaries = sorted((runs_dir / skill).glob("*/summary.json"))
+    # Only plain `sf eval` runs; labelled runs (ablation variants, model benchmarks) are excluded.
+    summaries = sorted(
+        p for p in (runs_dir / skill).glob("*/summary.json") if PLAIN_RUN.match(p.parent.name)
+    )
     if not summaries:
         return None
     path = summaries[-1]
@@ -248,6 +261,7 @@ def build_rows(
                 waivers=list(s.spec.lint_waivers),
                 usage=u,
                 eval=latest_eval(runs_dir, s.name),
+                ablation=latest_ablation(runs_dir, s.name),
             )
         )
     others = {q: u for q, u in usage.items() if q not in claimed and not q.startswith("sf-eval-")}

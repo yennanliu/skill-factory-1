@@ -109,6 +109,10 @@ footer { margin-top: 32px; color: var(--muted); font-size: 12px; }
       {% for c in r.eval.cases %}<code>{{ c.name }}</code> {{ c.passes }}/{{ c.runs }}{% if c.baseline_pass_rate is not none %} (base {{ c.baseline_pass_rate|pct }}){% endif %}{% if c.fired_runs is not none and c.fired_runs < c.runs %} <span class="warn">fired {{ c.fired_runs }}/{{ c.runs }}</span>{% endif %}<br>{% endfor %}
     </dd>
     {% endif %}
+    {% if r.ablation %}
+    <dt>ablation</dt><dd><b>{{ r.ablation.verdict }}</b> (with {{ r.ablation.pass_rate|pct }}, without {{ r.ablation.baseline_pass_rate|pct }}){% if r.ablation.eval_too_easy %} · <span class="warn">eval too easy for section verdicts</span>{% endif %}<br>
+      {% for sec in r.ablation.sections %}<code>{{ sec.section }}</code> {{ sec.verdict }} (~{{ sec.tokens_saved }} tok){{ '<br>'|safe if not loop.last }}{% endfor %}</dd>
+    {% endif %}
   </dl>
 </section>
 {% endfor %}
