@@ -57,10 +57,11 @@ cost AS (
 errors AS (
   SELECT qualified, count(*) AS errors
   FROM hook_events WHERE event = 'tool_error' AND qualified IS NOT NULL AND ts >= $since
+    AND NOT coalesce(interrupted, false)  -- the user pressing Esc isn't the skill's fault
   GROUP BY 1),
 names AS (
   SELECT qualified FROM otel_calls UNION SELECT qualified FROM hook_calls
-  UNION SELECT qualified FROM cost)
+  UNION SELECT qualified FROM cost UNION SELECT qualified FROM errors)
 SELECT n.qualified,
        coalesce(o.calls, h.calls, 0), coalesce(o.model_calls, h.model_calls, 0),
        coalesce(o.user_calls, h.user_calls, 0), coalesce(o.sessions, h.sessions, 0),

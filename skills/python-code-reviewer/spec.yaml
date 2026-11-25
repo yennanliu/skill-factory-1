@@ -23,6 +23,7 @@ evals:
   min_pass_rate: 0.7
   max_pass_rate: 0.95
   runs: 5
+  allow_tools: [Write, Edit]  # so read-only-review's "never edits" check can actually fail
 side_effects: none
 # Waivers: imported unchanged in Phase 0; revisit with eval evidence (Phase 4/7 ablation).
 lint_waivers:

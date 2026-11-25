@@ -284,3 +284,65 @@ def test_sessions_sorted_by_cost() -> None:
     sessions = analyze(con_with([req("cheap", 0), req("dear", 0, cost_usd=2.0)]), T0)
     assert [s.id for s in sessions] == ["dear", "cheap"]
     assert sessions[0].cost == pytest.approx(2.0) and sessions[0].start == T0
+
+
+def test_stage_catalog_survives_a_broken_neighbour(tmp_path: Path) -> None:
+    import shutil
+
+    from skill_factory.eval.stage import stage_skill
+
+    repo = tmp_path / "r"
+    shutil.copytree(ROOT / "skills", repo / "skills")
+    shutil.copy(ROOT / "market.yaml", repo / "market.yaml")
+    (repo / "skills" / "half-written").mkdir()
+    (repo / "skills" / "half-written" / "spec.yaml").write_text("name: [broken\n")
+    stage = stage_skill(load_skill(repo / "skills" / "find-skills"), tmp_path / "s")
+    data = json.loads(
+        (stage / "skills" / "find-skills" / "references" / "catalog.json").read_text()
+    )
+    assert "half-written" not in {s["skill"] for s in data["skills"]}
+
+
+def test_promote_escapes_multiline_text_and_rejects_unsafe_ids(repo: Path, tmp_path: Path) -> None:
+    from ruamel.yaml import YAML
+
+    cut = pc.Papercut.from_json({**CUT_A, "suggested_fix": "use make all\nexecution: {prompt: x}"})
+    case = pc.promote(repo, cut)
+    doc = YAML(typ="safe").load(case.read_text())
+    assert doc["execution"]["prompt"].startswith("TODO")  # the injected line stayed a comment
+    with pytest.raises(FileNotFoundError, match="unsafe"):
+        pc.promote(repo, pc.Papercut.from_json({**CUT_A, "id": "../../x"}))
+
+
+def test_find_tolerates_duplicate_lines_of_one_report() -> None:
+    cuts = [pc.Papercut.from_json(CUT_A), pc.Papercut.from_json(CUT_A)]
+    found = pc.find(cuts, "aaaa1111")
+    assert found is not None and found.id == "aaaa1111"
+
+
+def test_analyze_uses_the_sessions_real_first_request() -> None:
+    rows = [
+        req("old", -60 * 24 * 8, input_tokens=100),  # started 8 days before T0
+        req("old", 0, cache_read_tokens=120_000),
+    ]  # big context inside the window
+    found = {s.id: s for s in analyze(con_with(rows), T0)}
+    assert found["old"].findings == []
+    assert found["old"].start == T0 - timedelta(days=8)
+
+
+def test_streaks_count_only_matching_outcomes() -> None:
+    cmd = '{"command":"pytest"}'
+    rows = [
+        req("s", 0),
+        tool("s", 1, "Bash", tool_input=cmd),
+        tool("s", 2, "Bash", tool_input=cmd, ok=False),
+        tool("s", 3, "Bash", tool_input=cmd, ok=False),
+    ]
+    assert patterns(rows) == {"s": []}  # 1 success + 2 failures is not "failed 3x"
+    long_a = '{"command":"python - <<EOF ' + "x" * 100 + 'A"}'
+    long_b = long_a.replace('A"}', 'B"}')
+    rows = [
+        req("t", 0),
+        *[tool("t", i, "Bash", tool_input=v) for i, v in enumerate([long_a, long_b, long_a], 1)],
+    ]
+    assert patterns(rows) == {"t": []}  # same 80-char prefix, different commands

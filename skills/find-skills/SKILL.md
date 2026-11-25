@@ -19,9 +19,9 @@ Check whether a skill already exists before anyone writes a new one or starts a 
 1. **Turn the request into a short task phrase.** Pull out the task words, for example `summarise pull request diffs` from "is there a skill that can summarise my PRs?". Drop filler such as "is there a skill for".
    Verify: the phrase is 3 to 10 words and names the task, not the request.
 
-2. **Run the search.** Use the path of `scripts/find_skills.py` inside this skill's folder:
+2. **Run the search** with the script's full path. `$SKILL_DIR` stands for this skill's base directory, which Claude Code shows when the skill loads ("Base directory for this skill: …"):
    ```bash
-   python3 scripts/find_skills.py "summarise pull request diffs" --limit 5
+   python3 "$SKILL_DIR/scripts/find_skills.py" "summarise pull request diffs" --limit 5
    ```
    Verify: the command exits 0 and prints a JSON list (it can be `[]`).
 
@@ -50,4 +50,4 @@ Check whether a skill already exists before anyone writes a new one or starts a 
 | `python3: command not found` | Try `python`. If that also fails, tell the user that the search could not run. |
 | The user insists on a new skill even though a match exists | Do what they choose. The search result was advice, not a block. |
 
-<!-- sf:spec-sha256=c613fd1b95b397354b74018662213e671a865cbc7c69eb313bde3216d42ae6dc -->
+<!-- sf:spec-sha256=384f95ab4ad574d00789da8a0dc910c65955b00052c48c43386a5e733b260e74 -->

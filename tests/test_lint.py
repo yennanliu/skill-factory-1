@@ -225,6 +225,42 @@ def test_sf006_accepts_indented_fences(good: Path) -> None:
     assert rules_hit(good) == set()
 
 
-def test_sf011_ignores_prose_mentions(good: Path) -> None:
+def test_prose_mentions_are_a_warning_not_an_error(good: Path) -> None:
     set_md(good, GOOD_MD + "\nFor example `scripts/build.sh` of another skill may fail.\n")
+    findings = lint_skill(good).findings
+    assert [(f.rule, f.severity) for f in findings] == [("SF014", "warning")]
+
+
+def test_sf006_accepts_indented_and_tilde_fences(good: Path) -> None:
+    add_spec(good, "tools:\n  required: [Bash]\n")
+    assert rules_hit(good) == set()  # GOOD_MD's fence is indented under step 1
+    set_md(good, GOOD_MD.replace("   ```bash\n   make build\n   ```", "~~~bash\nmake build\n~~~"))
     assert rules_hit(good) == set()
+
+
+def test_sf005_last_step_does_not_borrow_later_sections(good: Path) -> None:
+    md = GOOD_MD.replace(" and check the exit code is 0", "").replace("2. Confirm", "2. Write")
+    md = md.replace("| build fails |", "| check the log, confirm, validate |")
+    set_md(good, md)
+    assert "SF005" in rules_hit(good)
+
+
+def test_step_n_headings_count_as_steps(good: Path) -> None:
+    md = GOOD_MD.replace("1. Run", "## Step 1: Run").replace("2. Confirm", "## Step 2 — Confirm")
+    set_md(good, md)
+    assert "SF004" not in rules_hit(good)
+
+
+def test_sf002_counts_cjk_characters(good: Path) -> None:
+    set_md(good, GOOD_MD.replace("Does alpha.", "做" * 150 + "。"))
+    assert "SF002" in rules_hit(good)
+
+
+def test_github_annotations_are_escaped(good: Path) -> None:
+    from skill_factory.lint.rules import Finding
+
+    report = lint_skill(good)
+    report.findings.append(Finding("SF000", "error", "a,b", "line1\nline2 100%", file="x:y"))
+    out = as_github(report)
+    assert "file=skills/a%2Cb/x%3Ay" in out and "line1%0Aline2 100%25" in out
+    assert "\nline2" not in out

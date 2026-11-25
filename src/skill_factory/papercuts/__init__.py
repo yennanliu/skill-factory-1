@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
@@ -93,12 +94,26 @@ def group(cuts: list[Papercut]) -> list[tuple[str, int, Counter[str]]]:
 
 
 def find(cuts: list[Papercut], pid: str) -> Papercut | None:
+    """Unique match by id prefix. Duplicate lines with the same id (the same report filed twice
+    in one second) count as one."""
     matches = [c for c in cuts if c.id.startswith(pid)]
-    return matches[0] if len(matches) == 1 else None
+    return matches[0] if matches and len({c.id for c in matches}) == 1 else None
+
+
+SAFE_RE = re.compile(r"^[\w-]+$")
+
+
+def _one_line(text: str) -> str:
+    return " ".join(text.split())
 
 
 def promote(root: Path, cut: Papercut) -> Path:
     """Turn a papercut into a draft regression eval case in the skill's evals/."""
+    # Ids and skill names come from the inbox: never let them build paths outside skills/.
+    if not SAFE_RE.match(cut.short_skill) or not SAFE_RE.match(cut.id):
+        raise FileNotFoundError(
+            f"refusing unsafe skill/id in papercut: {cut.short_skill!r} {cut.id!r}"
+        )
     skill_dir = root / "skills" / cut.short_skill
     if not skill_dir.is_dir():
         raise FileNotFoundError(f"no skill {cut.short_skill!r} in this repo")
@@ -128,9 +143,9 @@ def promote(root: Path, cut: Papercut) -> Path:
     yaml = YAML()
     yaml.width = 100
     with (case_dir / "case.yaml").open("w") as f:
-        f.write(
-            f"# From papercut {cut.id} filed {cut.ts}. Suggested fix: {cut.suggested_fix or '-'}\n"
-        )
+        # one line each: a newline inside inbox text would otherwise become live YAML
+        fix = _one_line(cut.suggested_fix) or "-"
+        f.write(f"# From papercut {cut.id} filed {_one_line(cut.ts)}. Suggested fix: {fix}\n")
         f.write(
             "# Make the prompt reproduce the failure, confirm the case FAILS, then fix the skill.\n"
         )

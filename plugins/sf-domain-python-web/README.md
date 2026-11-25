@@ -10,6 +10,12 @@ Python web development skills (FastAPI).
 /plugin install sf-domain-python-web --marketplace yennanliu/skill-factory-1
 ```
 
+or, once the marketplace is added (`/plugin marketplace add yennanliu/skill-factory-1`):
+
+```
+/plugin install sf-domain-python-web@skill-factory
+```
+
 ## Skills
 
 | Skill | Version | Goal |

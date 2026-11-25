@@ -51,8 +51,9 @@ Two things to read out of it:
 - **Position implies difficulty.** The LC numbers appear in contest order, so the first is
   Q1 (Easy), then Medium, Medium/Hard, Hard. Mark it as an assumption in the report.
 
-If the user pasted a URL or a full problem statement instead, that is the source of truth
-and this step is already done.
+If the user pasted a URL, that is the source of truth and this step is done. A pasted
+statement without a URL is not enough: look up the official problem page for the URL and
+slug, and if that fails, ask the user for the URL instead of guessing the slug.
 
 ### 2. Read a neighbour before writing
 
@@ -135,7 +136,9 @@ different approach), each with its own `IDEA` and `time =` line, and the class i
 ### 5. Smoke-test before reporting done
 
 The file name has dashes, so it is not importable — load it by path and run the docstring's
-examples plus the edges (empty, single element, all-same):
+examples plus the edges the problem's constraints allow (empty, single element, all-same —
+only when valid inputs). Match the method's real signature: LC 239 takes `(nums, k)`, and
+an empty `nums` is not a valid input there. The call below is for a one-argument method:
 
 ```bash
 python3 -c "
@@ -201,4 +204,4 @@ the statement, a Java link deliberately omitted.
 | 6 | README row inserted after LC 4007, the last row of the hash-table table |
 | 7 | flagged: difficulty inferred from contest position, examples written from the rule |
 
-<!-- sf:spec-sha256=f029111beb890fff5893c9765f465f4b3fabd5ada0c071e23c974b3468db1810 sf:version=1.0.0 -->
+<!-- sf:spec-sha256=c11de62444f2dad32bcd30c6062fdb95fee44e9a11a297eef899a14394a8797b sf:version=1.0.0 -->

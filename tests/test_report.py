@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from skill_factory.report.data import build_rows, latest_eval, usage_by_skill
@@ -143,3 +143,46 @@ def test_latest_eval_ignores_labelled_runs(tmp_path: Path) -> None:
     write_summary(tmp_path, "x", "2026-11-03T00-00-00Z-ablation-minus-steps", 0.2, 0.2)
     e = latest_eval(tmp_path, "x")
     assert e is not None and e.when == "2026-11-01T00-00-00Z"
+
+
+def test_both_sources_dont_double_count(tmp_path: Path) -> None:
+    ev = tmp_path / "e.jsonl"
+    ev.write_text(
+        json.dumps(
+            {
+                "ts": "2026-11-24T10:45:00Z",
+                "event": "skill_invoked",
+                "session_id": "x",
+                "qualified": "sf-probe:probe-echo",
+                "cwd_hash": "h1",
+            }
+        )
+        + "\n"
+    )
+    usage = usage_by_skill(connect(ev, OTEL_LOGS), EPOCH, NOW, 14)
+    u = usage["sf-probe:probe-echo"]
+    assert sum(u.daily) == u.calls == 2  # OTel rows win; the hook duplicate isn't added
+    assert u.repos == 1  # repos still come from hook events
+
+
+def test_repos_unknown_without_hook_data() -> None:
+    u = usage_by_skill(connect(Path("/none"), OTEL_LOGS), EPOCH, NOW, 14)["sf-probe:probe-echo"]
+    assert u.repos is None
+
+
+def test_sparkline_is_clamped_to_the_window(tmp_path: Path) -> None:
+    since = NOW - timedelta(days=2)
+    usage = usage_by_skill(
+        connect(hook_events(tmp_path / "e.jsonl"), Path("/none")), since, NOW, 30
+    )
+    assert len(usage["p:a"].daily) == 3  # since-date .. today, not 30 points
+
+
+def test_eval_snapshot_carries_partial_and_version(tmp_path: Path) -> None:
+    d = tmp_path / "x" / "2026-11-01T00-00-00Z"
+    d.mkdir(parents=True)
+    (d / "summary.json").write_text(
+        json.dumps({"status": "partial", "partial": True, "version": "0.9.0", "runs": 2})
+    )
+    e = latest_eval(tmp_path, "x")
+    assert e is not None and e.partial and e.version == "0.9.0"

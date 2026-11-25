@@ -122,3 +122,54 @@ def test_plugin_assets_are_copied(repo: Path) -> None:
     market.write_text(market.read_text().replace("assets: [hooks]", "assets: [missing]"))
     with pytest.raises(BuildError, match="asset dir 'missing' does not exist"):
         build(repo)
+
+
+def test_release_checks_the_plugin_before_writing(repo: Path) -> None:
+    from skill_factory.spec import SkillError
+
+    market = repo / "market.yaml"
+    market.write_text(
+        market.read_text().replace(
+            "  sf-domain-demo:\n    version: 1.2.3\n    description: demo\n", ""
+        )
+    )
+    spec = repo / "skills" / "beta" / "spec.yaml"
+    before = spec.read_text()
+    with pytest.raises(SkillError, match=re.escape("not declared in market.yaml")):
+        release(repo, "beta", "patch")
+    assert spec.read_text() == before  # nothing half-written
+
+
+def test_build_with_no_plugin_members_keeps_a_valid_tree(repo: Path) -> None:
+    build(repo)
+    shutil.rmtree(repo / "skills")
+    (repo / "skills").mkdir()
+    build(repo)  # used to rmtree plugins/ and then crash on the missing staging dir
+    assert (repo / "plugins").is_dir() and list((repo / "plugins").iterdir()) == []
+    assert check(repo) == []
+
+
+def test_invalid_market_yaml_is_a_build_error(repo: Path) -> None:
+    (repo / "market.yaml").write_text("plugins:\n  - [unclosed\n")
+    with pytest.raises(BuildError, match="not valid YAML"):
+        build(repo)
+
+
+@pytest.mark.parametrize(
+    ("assets", "msg"),
+    [
+        ("[../outside]", "outside the repo"),
+        ("[a/hooks, b/hooks]", "collides with 'hooks'"),
+        ("[skills]", "collides with 'skills'"),
+    ],
+)
+def test_asset_paths_are_validated(repo: Path, assets: str, msg: str) -> None:
+    (repo.parent / "outside").mkdir(exist_ok=True)
+    for d in ("a/hooks", "b/hooks"):
+        (repo / d).mkdir(parents=True, exist_ok=True)
+    market = repo / "market.yaml"
+    market.write_text(
+        market.read_text() + f"  sf-platform:\n    version: 0.1.0\n    assets: {assets}\n"
+    )
+    with pytest.raises(BuildError, match=re.escape(msg)):
+        build(repo)

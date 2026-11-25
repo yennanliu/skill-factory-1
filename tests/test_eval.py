@@ -145,7 +145,7 @@ def test_no_runs_and_notes() -> None:
         model=None,
         policy=EvalPolicy(),
     )
-    assert s.status == "no-runs"
+    assert s.status == "partial"  # a truncated run is never judged
     assert any("schemaVersion 2" in n for n in s.notes)
     assert any("partial" in n for n in s.notes)
 
@@ -160,6 +160,9 @@ def test_every_repo_skill_has_a_loadable_eval_suite() -> None:
         dirs = case_dirs(evals)
         assert dirs, f"{skill_dir.name} has no cases"
         for d in dirs:
+            if not (d / "case.yaml").is_file():  # prompt.md + graders/*.md form
+                assert list((d / "graders").glob("*.md")), d
+                continue
             case = YAML(typ="safe").load((d / "case.yaml").read_text())
             assert case["schema_version"] == "1.1"
             assert case["name"] == d.name
@@ -168,3 +171,81 @@ def test_every_repo_skill_has_a_loadable_eval_suite() -> None:
             if scaffold:
                 assert scaffold.startswith(f"{SHARED_DIR}/"), "scaffolds live in evals/_shared/"
                 assert (evals / scaffold).is_file(), scaffold
+
+
+def test_no_runs_status() -> None:
+    s = parse(
+        {"schemaVersion": 1, "cases": []},
+        skill="x",
+        version="1.0.0",
+        model=None,
+        policy=EvalPolicy(),
+    )
+    assert s.status == "no-runs"
+
+
+def test_errored_runs_are_not_failures() -> None:
+    runs = [_run(True)] * 7 + [{"passed": False, "error": "529 overloaded"}] * 3
+    raw = {"schemaVersion": 1, "cases": [{"name": "c", "arms": {"with": runs, "without": []}}]}
+    s = parse(raw, skill="x", version="1.0.0", model=None, policy=EvalPolicy())
+    (c,) = s.cases
+    assert (c.runs, c.passes, c.errors, s.pass_rate) == (7, 7, 3, 1.0)
+
+
+def test_run_timeout_scales_with_the_work(evaluated: Path) -> None:
+    from skill_factory.eval.runner import max_case_timeout, run_timeout
+
+    skill = load_skill(evaluated)
+    cases = case_dirs(evaluated / "evals")
+    assert max_case_timeout(cases) == 300
+    # 2 cases x 5 runs x 2 arms, 1 at a time, 300 s each
+    assert run_timeout(skill, EvalOptions(), 2, 300) == 20 * 300 + 300
+    assert run_timeout(skill, EvalOptions(concurrency=4, ablation=False), 2, 300) == 3 * 300 + 300
+    assert run_timeout(skill, EvalOptions(timeout_seconds=42), 2, 300) == 42
+
+
+def test_eval_grants_from_spec(evaluated: Path, tmp_path: Path) -> None:
+    spec = evaluated / "spec.yaml"
+    spec.write_text(spec.read_text() + "evals:\n  allow_tools: [Write, Edit]\n")
+    cmd = " ".join(
+        build_command(
+            tmp_path, tmp_path / "o.json", load_skill(evaluated), EvalOptions(runs=0 or None)
+        )
+    )
+    assert "--allow-tools Write Edit" in cmd
+
+
+def test_timeout_becomes_eval_error(evaluated: Path, tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    import subprocess
+
+    from skill_factory.eval import runner
+
+    monkeypatch.setattr(runner.shutil, "which", lambda _x: "/bin/claude")
+
+    def slow(cmd, **kw):  # type: ignore[no-untyped-def]
+        raise subprocess.TimeoutExpired(cmd, kw["timeout"], output=b"partial out")
+
+    monkeypatch.setattr(runner.subprocess, "run", slow)
+    with pytest.raises(runner.EvalError, match="timed out"):
+        runner.run_eval(load_skill(evaluated), tmp_path / "runs", EvalOptions(timeout_seconds=5))
+    (log,) = (tmp_path / "runs").rglob("claude-eval.log")
+    assert "timed out after 5s" in log.read_text() and "partial out" in log.read_text()
+
+
+def test_exit_1_without_load_errors_is_a_failure(
+    evaluated: Path, tmp_path: Path, monkeypatch
+) -> None:  # type: ignore[no-untyped-def]
+    import subprocess
+
+    from skill_factory.eval import runner
+
+    monkeypatch.setattr(runner.shutil, "which", lambda _x: "/bin/claude")
+
+    def fake(cmd, **kw):  # type: ignore[no-untyped-def]
+        out = Path(cmd[cmd.index("--json") + 1])
+        out.write_text(json.dumps({"schemaVersion": 1, "cases": []}))
+        return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="auth failed")
+
+    monkeypatch.setattr(runner.subprocess, "run", fake)
+    with pytest.raises(runner.EvalError, match="exit 1"):
+        runner.run_eval(load_skill(evaluated), tmp_path / "runs", EvalOptions(timeout_seconds=5))

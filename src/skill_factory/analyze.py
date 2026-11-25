@@ -72,12 +72,21 @@ def analyze(con: duckdb.DuckDBPyConnection, since: datetime) -> list[Session]:
         {"since": since},
     ).fetchall()
 
+    # A session's real first request, even when it is older than the window: a session that
+    # started earlier carries its whole conversation on the first request *inside* the window.
+    first_ts = dict(
+        con.execute(
+            "SELECT session_id, min(ts) FROM otel_events WHERE event = 'api_request' "
+            "AND session_id IS NOT NULL GROUP BY 1"
+        ).fetchall()
+    )
     by_prompt_reqs: dict[tuple[str, str], list[tuple[str, int]]] = defaultdict(list)
     last_ts: dict[str, datetime] = {}
     for sid, pid, ts, model, cost, out_tok, in_tok, cache_read, cache_new in reqs:
         s = sessions.setdefault(sid, Session(sid))
         if s.requests == 0:
-            s.start = ts
+            s.start = first_ts.get(sid, ts)
+        if ts == first_ts.get(sid):
             preload = (in_tok or 0) + (cache_read or 0) + (cache_new or 0)
             if preload > PRELOAD_TOKENS:
                 s.findings.append(
@@ -112,7 +121,7 @@ def analyze(con: duckdb.DuckDBPyConnection, since: datetime) -> list[Session]:
         by_prompt_tools[(sid, pid)].append(str(tool))
         if size and size > LARGE_RESULT_BYTES:
             s.findings.append(_f("large-tool-result", f"{tool} returned {size / 1000:.0f} KB"))
-        runs[sid].append((str(tool), (tool_input or "")[:80], bool(success)))
+        runs[sid].append((str(tool), tool_input or "", bool(success)))  # full stored input
 
     for (sid, pid), calls in by_prompt_reqs.items():
         tools_used = set(by_prompt_tools.get((sid, pid), []))
@@ -143,18 +152,22 @@ def analyze(con: duckdb.DuckDBPyConnection, since: datetime) -> list[Session]:
             )
 
     for sid, seq in runs.items():
-        streak, flagged_poll, flagged_retry = 1, False, False
+        # Two separate streaks of identical calls (same tool + same full input): successful
+        # Bash calls (polling) and failures (retry loop). Mixed outcomes reset both.
+        ok_streak = fail_streak = 1
+        flagged_poll = flagged_retry = False
         for before, cur in itertools.pairwise(seq):
             same = cur[0] == before[0] and cur[1] == before[1] and cur[1] != ""
-            streak = streak + 1 if same else 1
-            if streak >= REPEAT and cur[0] == "Bash" and cur[2] and not flagged_poll:
+            ok_streak = ok_streak + 1 if same and cur[2] and before[2] else 1
+            fail_streak = fail_streak + 1 if same and not cur[2] and not before[2] else 1
+            if ok_streak >= REPEAT and cur[0] == "Bash" and not flagged_poll:
                 sessions[sid].findings.append(
-                    _f("polling-in-main-session", f"`{cur[1][:50]}` ran {streak}x in a row")
+                    _f("polling-in-main-session", f"`{cur[1][:50]}` ran {ok_streak}x in a row")
                 )
                 flagged_poll = True
-            if streak >= REPEAT and not cur[2] and not before[2] and not flagged_retry:
+            if fail_streak >= REPEAT and not flagged_retry:
                 sessions[sid].findings.append(
-                    _f("retry-loop", f"{cur[0]} `{cur[1][:50]}` failed {streak}x in a row")
+                    _f("retry-loop", f"{cur[0]} `{cur[1][:50]}` failed {fail_streak}x in a row")
                 )
                 flagged_retry = True
 

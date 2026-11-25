@@ -41,9 +41,9 @@ File **one papercut per distinct problem**. Do not file one for mistakes you mad
    - `high`: the task was blocked, or the wrong output was produced silently.
    Verify: the value is one of the three allowed values.
 
-4. **Run the script.** Use the path of `scripts/log_papercut.py` inside this skill's folder, and run it from the user's current directory:
+4. **Run the script** from the user's current directory, using the script's full path. `$SKILL_DIR` stands for this skill's base directory, which Claude Code shows when the skill loads ("Base directory for this skill: …"):
    ```bash
-   python3 scripts/log_papercut.py \
+   python3 "$SKILL_DIR/scripts/log_papercut.py" \
      --skill "deploy-helper" \
      --skill-version "1.2.0" \
      --tried "Run the skill's step 3 build command" \
@@ -69,4 +69,4 @@ File **one papercut per distinct problem**. Do not file one for mistakes you mad
 | `No such file or directory` for the script | Use the full path to this skill's `scripts/log_papercut.py`. Do not recreate the script. |
 | Unsure whether the problem deserves a papercut | File it with `--severity low`. A duplicate report costs less than a lost one. |
 
-<!-- sf:spec-sha256=35175492f171d3ac40272f31199ce333ebd4ab5ec4362262dea70737c2281afc sf:version=0.1.0 -->
+<!-- sf:spec-sha256=e6aed1a40fac70b608862830cdcdd8fea62b502ea39a502bd6bd1f888043172f sf:version=0.1.0 -->
