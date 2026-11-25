@@ -18,7 +18,7 @@ outputs:
   - the line that blocks the optimal complexity, when there is one
   - sibling problems to drill next
 tools:
-  required: [Read, Glob, Grep]
+  required: [Read, Glob, Grep, Bash, Write, Edit]  # Bash runs dry-runs; Write saves debriefs
   forbidden: []
   scripts: []
 targets:
@@ -31,7 +31,7 @@ evals:
   min_pass_rate: 0.7
   max_pass_rate: 0.95
   runs: 5
-side_effects: none
+side_effects: local
 # Waivers: imported unchanged in Phase 0; revisit with eval evidence (Phase 4/7 ablation).
 lint_waivers:
   - SF002  # description ~152 tokens; carries trigger phrases that may matter for routing

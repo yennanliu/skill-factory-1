@@ -10,6 +10,12 @@ Widely useful, tested skills reviewed by the platform owner.
 /plugin install sf-core --marketplace yennanliu/skill-factory-1
 ```
 
+or, once the marketplace is added (`/plugin marketplace add yennanliu/skill-factory-1`):
+
+```
+/plugin install sf-core@skill-factory
+```
+
 ## Skills
 
 | Skill | Version | Goal |
