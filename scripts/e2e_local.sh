@@ -122,5 +122,5 @@ else
 fi
 
 printf '\n== summary: %d passed, %d failed\n' "${#PASSED[@]}" "${#FAILED[@]}"
-for f in "${FAILED[@]}"; do echo "   FAILED: $f"; done
+for f in ${FAILED[@]+"${FAILED[@]}"}; do echo "   FAILED: $f"; done  # bash 3.2-safe
 [ "${#FAILED[@]}" -eq 0 ]
