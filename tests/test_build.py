@@ -153,3 +153,23 @@ def test_invalid_market_yaml_is_a_build_error(repo: Path) -> None:
     (repo / "market.yaml").write_text("plugins:\n  - [unclosed\n")
     with pytest.raises(BuildError, match="not valid YAML"):
         build(repo)
+
+
+@pytest.mark.parametrize(
+    ("assets", "msg"),
+    [
+        ("[../outside]", "outside the repo"),
+        ("[a/hooks, b/hooks]", "collides with 'hooks'"),
+        ("[skills]", "collides with 'skills'"),
+    ],
+)
+def test_asset_paths_are_validated(repo: Path, assets: str, msg: str) -> None:
+    (repo.parent / "outside").mkdir(exist_ok=True)
+    for d in ("a/hooks", "b/hooks"):
+        (repo / d).mkdir(parents=True, exist_ok=True)
+    market = repo / "market.yaml"
+    market.write_text(
+        market.read_text() + f"  sf-platform:\n    version: 0.1.0\n    assets: {assets}\n"
+    )
+    with pytest.raises(BuildError, match=re.escape(msg)):
+        build(repo)

@@ -240,8 +240,11 @@ def otel_down() -> None:
 
 
 @otel_app.command("status")
-def otel_status(port: Annotated[int, typer.Option(help="Port to check.")] = DEFAULT_PORT) -> None:
+def otel_status(
+    port: Annotated[int | None, typer.Option(help="Port (default: the running one).")] = None,
+) -> None:
     """Show whether the collector is up and how much it has recorded."""
+    port = port or otel_proc.stored_port(_otel_dir())
     pid = otel_proc.running_pid(_otel_dir())
     ok = otel_proc.healthy(port)
     console.print(
@@ -256,9 +259,11 @@ def otel_status(port: Annotated[int, typer.Option(help="Port to check.")] = DEFA
 
 
 @otel_app.command("env")
-def otel_env_cmd(port: Annotated[int, typer.Option(help="Collector port.")] = DEFAULT_PORT) -> None:
+def otel_env_cmd(
+    port: Annotated[int | None, typer.Option(help="Port (default: the running one).")] = None,
+) -> None:
     """Print `export` lines that point Claude Code at the collector."""
-    for k, v in otel_proc.otel_env(port).items():
+    for k, v in otel_proc.otel_env(port or otel_proc.stored_port(_otel_dir())).items():
         print(f"export {k}={v}")
 
 

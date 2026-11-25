@@ -122,10 +122,16 @@ def _render(root: Path, out: Path) -> BuildResult:
         pdir = out / "plugins" / pname
         for s in members:
             _copy_skill(s, pdir / "skills" / s.name)
+        taken = {"skills", ".claude-plugin", "README.md"}
         for asset in pdef.assets:
-            src = root / asset
+            src = (root / asset).resolve()
+            if not src.is_relative_to(root.resolve()):
+                raise BuildError([f"plugin {pname!r}: asset {asset!r} is outside the repo"])
             if not src.is_dir():
                 raise BuildError([f"plugin {pname!r}: asset dir {asset!r} does not exist"])
+            if src.name in taken:
+                raise BuildError([f"plugin {pname!r}: asset {asset!r} collides with {src.name!r}"])
+            taken.add(src.name)
             shutil.copytree(src, pdir / src.name, ignore=shutil.ignore_patterns(*EXCLUDE))
         _write_json(
             pdir / ".claude-plugin" / "plugin.json",

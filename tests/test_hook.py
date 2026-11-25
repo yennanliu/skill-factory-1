@@ -118,12 +118,60 @@ def test_hooks_json_wires_the_contract_events() -> None:
     cfg = json.loads((ROOT / "hooks" / "hooks.json").read_text())["hooks"]
     assert set(cfg) == {
         "SessionStart",
+        "UserPromptSubmit",
         "UserPromptExpansion",
         "PostToolUse",
         "PostToolUseFailure",
+        "Stop",
         "SessionEnd",
     }
     assert cfg["PostToolUse"][0]["matcher"] == "Skill"
     for entries in cfg.values():
         cmd = entries[0]["hooks"][0]["command"]
         assert cmd == 'python3 "${CLAUDE_PLUGIN_ROOT}/hooks/sf_telemetry.py"'
+
+
+def _p(event: str, **kw: Any) -> dict[str, Any]:
+    return {"hook_event_name": event, "session_id": "s1", "cwd": "/w", **kw}
+
+
+def test_stop_ends_skill_attribution(tmp_path: Path) -> None:
+    hook = load_hook()
+    hook.build_event(_p("PostToolUse", tool_name="Skill", tool_input={"skill": "p:a"}), tmp_path)
+    err = hook.build_event(
+        _p("PostToolUseFailure", tool_name="Bash", error="Exit code 1"), tmp_path
+    )
+    assert err["qualified"] == "p:a"
+    assert hook.build_event(_p("Stop"), tmp_path) is None
+    later = hook.build_event(
+        _p("PostToolUseFailure", tool_name="Bash", error="Exit code 2"), tmp_path
+    )
+    assert later["qualified"] is None and later["error_code"] == 2
+
+
+def test_compaction_keeps_the_active_skill(tmp_path: Path) -> None:
+    hook = load_hook()
+    hook.build_event(_p("SessionStart", source="startup", model="m1"), tmp_path)
+    hook.build_event(_p("PostToolUse", tool_name="Skill", tool_input={"skill": "p:a"}), tmp_path)
+    hook.build_event(_p("SessionStart", source="compact"), tmp_path)
+    err = hook.build_event(_p("PostToolUseFailure", tool_name="Bash", error="x"), tmp_path)
+    assert err["qualified"] == "p:a" and err["model"] == "m1"
+    hook.build_event(_p("SessionStart", source="clear"), tmp_path)
+    err = hook.build_event(_p("PostToolUseFailure", tool_name="Bash", error="x"), tmp_path)
+    assert err["qualified"] is None
+
+
+def test_plain_custom_command_is_not_a_skill(tmp_path: Path) -> None:
+    hook = load_hook()
+    e = hook.build_event(
+        _p(
+            "UserPromptExpansion",
+            expansion_type="slash_command",
+            command_name="deploy",
+            command_source="projectSettings",
+        ),
+        tmp_path,
+    )
+    assert e["event"] == "command_invoked" and e["command"] == "deploy"
+    err = hook.build_event(_p("PostToolUseFailure", tool_name="Bash", error="x"), tmp_path)
+    assert err["qualified"] is None

@@ -9,7 +9,7 @@ MODEL="${1:-claude-haiku-5-5}"
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 VERSION="$(claude --version | awk '{print $1}')"
 DEST="$REPO/tests/fixtures/otel/$VERSION"
-TMP="$(mktemp -d -t sf-otel)"
+TMP="$(mktemp -d "${TMPDIR:-/tmp}/sf-otel.XXXXXX")"  # GNU + BSD compatible
 PORT="${SF_PROBE_OTEL_PORT:-14318}"
 trap 'kill "${COLLECTOR_PID:-0}" 2>/dev/null || true; rm -rf "$TMP"' EXIT
 
