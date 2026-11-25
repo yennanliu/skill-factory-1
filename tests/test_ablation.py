@@ -41,7 +41,7 @@ description: Does alpha. Use when asked.
 def test_sections_skip_fenced_headings() -> None:
     secs = ablation.sections(MD)
     assert [s.title for s in secs] == ["Steps", "Recovery"]
-    assert secs[0].slug == "steps"
+    assert secs[0].slug == "01-steps"
 
 
 def test_without_section_keeps_the_rest_and_the_marker() -> None:
@@ -223,3 +223,65 @@ def test_repo_calibration_sets_load() -> None:
     items = judge.load_items(root / "skills" / "lc-coach" / "evals")
     assert len(items) >= 6 and {i.label for i in items} == {True, False}
     json.dumps([i.__dict__ for i in items])
+
+
+def test_slug_is_unique_for_non_ascii_titles() -> None:
+    md = "# T\n\n## 步驟\n\na\n\n## 恢復\n\nb\n"
+    a, b = ablation.sections(md)
+    assert a.slug != b.slug and a.slug.startswith("01-") and b.slug.startswith("02-")
+
+
+def test_last_section_excludes_trailing_marker_and_tilde_fences() -> None:
+    md = (
+        "# T\n\n## Steps\n\n~~~markdown\n## Output\n~~~\n\n<!-- sf:spec-sha256="
+        + "a" * 64
+        + " -->\n"
+    )
+    (steps,) = ablation.sections(md)  # '## Output' inside the ~~~ fence is not a section
+    assert "sf:spec" not in md[steps.start : steps.end]
+    out = ablation.without_section(md, steps)
+    assert "## Steps" not in out and out.rstrip().endswith("-->")
+
+
+def test_partial_and_failed_variants_are_not_judged() -> None:
+    full = {
+        "skill": "a",
+        "pass_rate": 0.8,
+        "baseline_pass_rate": 0.4,
+        "policy": {"max_pass_rate": 0.95},
+    }
+    doc = ablation.report(
+        full,
+        [
+            {"section": "A", "summary": {"pass_rate": 0.8, "partial": True}, "tokens_saved": 1},
+            {"section": "B", "error": "timed out", "tokens_saved": 2},
+        ],
+    )
+    assert [r["verdict"] for r in doc["sections"]] == ["inconclusive (partial run)", "error"]
+    assert ablation.report({**full, "partial": True}, [])["verdict"] == "inconclusive (partial run)"
+
+
+def test_partial_bench_rows_never_meet_the_bar() -> None:
+    s = summary([True] * 6, 0.01)
+    object.__setattr__(s, "partial", True)
+    (row,) = bench.rows({"opus": s}, 0.7)
+    assert row.partial and not row.meets_bar
+
+
+def test_write_default_model_keeps_comments_and_handles_empty_targets(repo: Path) -> None:
+    spec = repo / "skills" / "alpha" / "spec.yaml"
+    spec.write_text(spec.read_text() + "targets:\n  models: [sonnet, opus]  # keep\n")
+    bench.write_default_model(spec, "haiku")
+    assert "# keep" in spec.read_text()
+    spec.write_text(spec.read_text().split("targets:")[0] + "targets:\n")
+    assert bench.write_default_model(spec, "haiku") == ["haiku"]
+
+
+def test_judge_tie_goes_to_fail_and_reason_matches_verdict(tmp_path: Path) -> None:
+    item = judge.Item("x", "c", "r1", True)
+    g = judge.grade(item, Judge({"r1": ["PASS", "FAIL"]}), "m", votes=2)
+    assert g.judge is False  # a tie is not a clear PASS
+    g = judge.grade(item, Judge({"r1": ["PASS", "FAIL", "FAIL"]}), "m", votes=3)
+    assert g.judge is False and g.majority_reason == "because"
+    with pytest.raises(ValueError):
+        judge.grade(item, Judge({"r1": []}), "m", votes=0)

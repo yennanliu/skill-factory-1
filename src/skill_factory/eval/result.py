@@ -71,7 +71,7 @@ class EvalOutput(_Lenient):
     cases: list[Case] = []
 
 
-Status = Literal["ok", "below-min", "too-easy", "no-runs"]
+Status = Literal["ok", "below-min", "too-easy", "no-runs", "partial"]
 
 
 @dataclass(frozen=True)
@@ -153,6 +153,8 @@ class SkillSummary:
 
     @property
     def status(self) -> Status:
+        if self.partial:
+            return "partial"  # a truncated sample isn't representative; never report it as ok
         rate = self.pass_rate
         if rate is None:
             return "no-runs"
@@ -204,7 +206,11 @@ def _mean(xs: list[float]) -> float | None:
 
 
 def summarise_case(case: Case) -> CaseSummary:
-    runs, base = case.arms.with_, case.arms.without
+    # Runs that crashed (harness/API errors) say nothing about the skill: count them under
+    # `errors`, not as failed attempts.
+    errored = [r for r in case.arms.with_ if r.error is not None]
+    runs = [r for r in case.arms.with_ if r.error is None]
+    base = [r for r in case.arms.without if r.error is None]
     skill_graders = case.skill_grader_names()
     fired = (
         sum(any(g.name in skill_graders and g.passed for g in r.graders) for r in runs)
@@ -217,7 +223,7 @@ def summarise_case(case: Case) -> CaseSummary:
         passes=sum(r.passed for r in runs),
         baseline_runs=len(base),
         baseline_passes=sum(r.passed for r in base),
-        errors=sum(r.error is not None for r in runs),
+        errors=len(errored),
         fired_runs=fired,
         mean_score=_mean([r.score for r in runs if r.score is not None]),
         mean_cost_usd=_mean([r.cost_usd for r in runs]),

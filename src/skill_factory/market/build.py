@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from pydantic import ValidationError
+from ruamel.yaml.error import YAMLError
 
 from skill_factory import yamlio
 from skill_factory.models.market import Market
@@ -46,6 +47,8 @@ def load_market(root: Path) -> Market:
         raise BuildError(["missing market.yaml"])
     try:
         return Market.model_validate(yamlio.load(path))
+    except YAMLError as e:
+        raise BuildError([f"market.yaml is not valid YAML: {e}"]) from e
     except ValidationError as e:
         raise BuildError([f"market.yaml: {err['loc']}: {err['msg']}" for err in e.errors()]) from e
 
@@ -65,7 +68,7 @@ def load_all(root: Path) -> list[SkillDir]:
 
 def _write_json(path: Path, data: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+    path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
 def catalog(skills: list[SkillDir], market: Market) -> dict[str, Any]:
@@ -98,27 +101,32 @@ def _copy_skill(skill: SkillDir, dest: Path, cat: dict[str, Any] | None = None) 
         write_catalog(dest, cat)
     md = dest / "SKILL.md"
     # A compiled SKILL.md already carries a spec-hash marker; replace it with the build stamp.
-    text = MARKER_RE.sub("", md.read_text()).rstrip("\n")
+    text = MARKER_RE.sub("", md.read_text(encoding="utf-8")).rstrip("\n")
     marker = f"<!-- {HASH_MARKER}{spec_sha256(skill.spec_path)} sf:version={skill.spec.version} -->"
-    md.write_text(f"{text}\n\n{marker}\n")
+    md.write_text(f"{text}\n\n{marker}\n", encoding="utf-8")
 
 
-def _plugin_readme(name: str, description: str, repo: str, skills: list[SkillDir]) -> str:
+def _plugin_readme(
+    name: str, description: str, repo: str, skills: list[SkillDir], market: str = ""
+) -> str:
+    install = (
+        f"## Install\n\n```\n/plugin install {name} --marketplace {repo}\n```\n\n"
+        f"or, once the marketplace is added (`/plugin marketplace add {repo}`):\n\n"
+        f"```\n/plugin install {name}@{market}\n```\n"
+    )
     if not skills:
-        return (
-            f"# {name}\n\n{description}\n\n<!-- {GENERATED_NOTE} -->\n\n"
-            f"## Install\n\n```\n/plugin install {name} --marketplace {repo}\n```\n"
-        )
+        return f"# {name}\n\n{description}\n\n<!-- {GENERATED_NOTE} -->\n\n{install}"
     rows = "\n".join(f"| `{s.name}` | {s.spec.version} | {s.spec.goal.strip()} |" for s in skills)
     return (
-        f"# {name}\n\n{description}\n\n<!-- {GENERATED_NOTE} -->\n\n"
-        f"## Install\n\n```\n/plugin install {name} --marketplace {repo}\n```\n\n"
+        f"# {name}\n\n{description}\n\n<!-- {GENERATED_NOTE} -->\n\n{install}\n"
         f"## Skills\n\n| Skill | Version | Goal |\n|---|---|---|\n{rows}\n"
     )
 
 
 def _render(root: Path, out: Path) -> BuildResult:
-    """Render plugins/ and .claude-plugin/ under `out`."""
+    """Render plugins/ and .claude-plugin/ under `out` (both always exist, possibly empty)."""
+    for sub in ("plugins", ".claude-plugin"):
+        (out / sub).mkdir(parents=True, exist_ok=True)
     market = load_market(root)
     skills = load_all(root)
     result = BuildResult()
@@ -144,10 +152,16 @@ def _render(root: Path, out: Path) -> BuildResult:
         pdir = out / "plugins" / pname
         for s in members:
             _copy_skill(s, pdir / "skills" / s.name, cat)
+        taken = {"skills", ".claude-plugin", "README.md"}
         for asset in pdef.assets:
-            src = root / asset
+            src = (root / asset).resolve()
+            if not src.is_relative_to(root.resolve()):
+                raise BuildError([f"plugin {pname!r}: asset {asset!r} is outside the repo"])
             if not src.is_dir():
                 raise BuildError([f"plugin {pname!r}: asset dir {asset!r} does not exist"])
+            if src.name in taken:
+                raise BuildError([f"plugin {pname!r}: asset {asset!r} collides with {src.name!r}"])
+            taken.add(src.name)
             shutil.copytree(src, pdir / src.name, ignore=shutil.ignore_patterns(*EXCLUDE))
         _write_json(
             pdir / ".claude-plugin" / "plugin.json",
@@ -159,7 +173,7 @@ def _render(root: Path, out: Path) -> BuildResult:
             },
         )
         (pdir / "README.md").write_text(
-            _plugin_readme(pname, pdef.description, market.repository, members)
+            _plugin_readme(pname, pdef.description, market.repository, members, market.name)
         )
         entries.append(
             {"name": pname, "source": f"./plugins/{pname}", "description": pdef.description}

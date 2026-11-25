@@ -142,3 +142,63 @@ def test_otel_env_matches_profile_file() -> None:
     lines = (ROOT / "profiles" / "otel.env").read_text().splitlines()
     pairs = dict(line.split("=", 1) for line in lines if line and not line.startswith("#"))
     assert pairs == otel_env()
+
+
+def test_errors_without_calls_still_show_and_interrupts_dont_count(tmp_path: Path) -> None:
+    ev = tmp_path / "events.jsonl"
+    rows = [
+        {
+            "ts": "2026-11-24T10:00:00Z",
+            "event": "tool_error",
+            "session_id": "s",
+            "qualified": "p:a",
+            "interrupted": False,
+        },
+        {
+            "ts": "2026-11-24T10:00:01Z",
+            "event": "tool_error",
+            "session_id": "s",
+            "qualified": "p:a",
+            "interrupted": True,
+        },
+    ]
+    ev.write_text("\n".join(json.dumps(r) for r in rows) + '\n123\n{"ts": "garbage"}\n[1]\n')
+    (s,) = skill_stats(connect(ev, Path("/nonexistent")), EPOCH)
+    assert (s.skill, s.calls, s.errors) == ("p:a", 0, 1)
+
+
+def test_malformed_otel_records_are_skipped(tmp_path: Path) -> None:
+    logs = tmp_path / "logs.jsonl"
+    good = {"key": "event.name", "value": {"stringValue": "skill_activated"}}
+    logs.write_text(
+        json.dumps(
+            {
+                "resourceLogs": [
+                    {
+                        "scopeLogs": [
+                            {
+                                "logRecords": [
+                                    {"attributes": [{"value": {}}]},  # no "key"
+                                    {"attributes": [good]},
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        )
+        + "\n[]\n"
+    )
+    assert [r[1] for r in iter_otel_events(logs)] == ["skill_activated"]
+
+
+def test_stale_pid_file_is_not_trusted(tmp_path: Path) -> None:
+    import os
+
+    from skill_factory.telemetry import otel
+
+    (tmp_path / "collector.pid").write_text(f"{os.getpid()} 5555\n")  # alive, but not a collector
+    assert otel.running(tmp_path) is None and otel.running_pid(tmp_path) is None
+    assert not (tmp_path / "collector.pid").exists()
+    assert otel.down(tmp_path) is False  # never kills an unrelated process
+    assert otel.stored_port(tmp_path) == otel.DEFAULT_PORT

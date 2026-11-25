@@ -17,12 +17,30 @@ def install_script(repo: Path, sf_home: Path) -> Path:
     return dest
 
 
+class SettingsError(Exception):
+    pass
+
+
+def wanted(script: Path) -> dict[str, str]:
+    return {"type": "command", "command": f'python3 "{script}"'}
+
+
 def plan_settings(settings_path: Path, script: Path) -> tuple[str, str, dict[str, Any]]:
-    """Return (old_text, new_text, new_settings) for adding our statusLine to a settings file."""
-    old_text = settings_path.read_text() if settings_path.is_file() else "{}\n"
-    data = json.loads(old_text or "{}")
-    data["statusLine"] = {"type": "command", "command": f'python3 "{script}"'}
-    new_text = json.dumps(data, indent=2) + "\n"
+    """Return (old_text, new_text, new_settings) for adding our statusLine to a settings file.
+
+    If statusLine is already ours, new_text == old_text (no rewrite, whatever the formatting).
+    """
+    old_text = settings_path.read_text(encoding="utf-8") if settings_path.is_file() else "{}\n"
+    try:
+        data = json.loads(old_text or "{}")
+    except ValueError as e:
+        raise SettingsError(f"{settings_path} is not valid JSON: {e}") from e
+    if not isinstance(data, dict):
+        raise SettingsError(f"{settings_path} must contain a JSON object")
+    if data.get("statusLine") == wanted(script):
+        return old_text, old_text, data
+    data["statusLine"] = wanted(script)
+    new_text = json.dumps(data, indent=2, ensure_ascii=False) + "\n"
     return old_text, new_text, data
 
 

@@ -62,13 +62,16 @@ class ClaudeCliBackend:
     def generate(self, system: str, user: str, schema: dict[str, Any], model: str) -> Answer:
         if shutil.which("claude") is None:
             raise BackendError("claude CLI not found on PATH")
-        proc = subprocess.run(
-            self.command(system, user, schema, model),
-            capture_output=True,
-            text=True,
-            stdin=subprocess.DEVNULL,
-            timeout=self.timeout,
-        )
+        try:
+            proc = subprocess.run(
+                self.command(system, user, schema, model),
+                capture_output=True,
+                text=True,
+                stdin=subprocess.DEVNULL,
+                timeout=self.timeout,
+            )
+        except subprocess.TimeoutExpired as e:
+            raise BackendError(f"claude -p timed out after {self.timeout}s") from e
         try:
             out = json.loads(proc.stdout)
         except ValueError as e:
@@ -88,8 +91,8 @@ class ApiBackend:
     def generate(self, system: str, user: str, schema: dict[str, Any], model: str) -> Answer:
         import anthropic
 
-        client = anthropic.Anthropic()
         try:
+            client = anthropic.Anthropic()
             # Streaming: a full SKILL.md plus eval drafts can be long.
             with client.beta.messages.stream(
                 model=model,
@@ -117,6 +120,10 @@ class ApiBackend:
             raise BackendError(f"API error {e.status_code}: {e.message}") from e
         except anthropic.APIConnectionError as e:
             raise BackendError(f"could not reach the API: {e}") from e
+        except anthropic.AnthropicError as e:  # e.g. no credentials found at all
+            raise BackendError(
+                f"{e} (set ANTHROPIC_API_KEY, run `ant auth login`, or use --backend claude-cli)"
+            ) from e
         if message.stop_reason == "refusal":
             raise BackendError("the model declined to compile this spec")
         if message.stop_reason == "max_tokens":

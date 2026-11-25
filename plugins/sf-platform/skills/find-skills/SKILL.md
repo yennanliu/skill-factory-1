@@ -50,4 +50,4 @@ Check whether a skill already exists before anyone writes a new one or starts a 
 | `python3: command not found` | Try `python`. If that also fails, tell the user that the search could not run. |
 | The user insists on a new skill even though a match exists | Do what they choose. The search result was advice, not a block. |
 
-<!-- sf:spec-sha256=c613fd1b95b397354b74018662213e671a865cbc7c69eb313bde3216d42ae6dc sf:version=0.1.0 -->
+<!-- sf:spec-sha256=384f95ab4ad574d00789da8a0dc910c65955b00052c48c43386a5e733b260e74 sf:version=0.1.0 -->

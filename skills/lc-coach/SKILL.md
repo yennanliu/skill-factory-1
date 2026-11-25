@@ -140,6 +140,9 @@ word. The recursion stack counts as space; the output buffer counts only when th
 - Python: `collections.deque` / `Counter` / `heapq`; no mutable default argument, no `list.pop(0)`
 
 **6 — Score, then drill.** Four signals, one line of evidence each, then exactly one drill.
+Score only what the evidence shows: from code alone you can't see narration, prompting or
+verification, so mark those signals `unobserved`, say what evidence would score them (a
+transcript or a mock), and don't invent a score.
 
 ### Output contract
 

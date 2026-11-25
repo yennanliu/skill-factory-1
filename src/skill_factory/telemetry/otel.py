@@ -39,13 +39,42 @@ def healthy(port: int, timeout: float = 0.5) -> bool:
         return False
 
 
-def running_pid(otel_dir: Path) -> int | None:
+def _is_collector(pid: int) -> bool:
+    """True if `pid` is our collector (a reused pid must never be trusted or killed)."""
     try:
-        pid = int(_pid_file(otel_dir).read_text().split()[0])
+        out = subprocess.run(
+            ["ps", "-p", str(pid), "-o", "command="], capture_output=True, text=True, timeout=5
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return "skill_factory.telemetry.collector" in out.stdout
+
+
+def running(otel_dir: Path) -> tuple[int, int] | None:
+    """(pid, port) of the running collector; clears a stale pid file."""
+    path = _pid_file(otel_dir)
+    try:
+        pid_s, port_s = path.read_text().split()[:2]
+        pid, port = int(pid_s), int(port_s)
         os.kill(pid, 0)
-        return pid
-    except (OSError, ValueError, IndexError):
+    except (OSError, ValueError):
+        path.unlink(missing_ok=True)
         return None
+    if not _is_collector(pid):
+        path.unlink(missing_ok=True)
+        return None
+    return pid, port
+
+
+def running_pid(otel_dir: Path) -> int | None:
+    info = running(otel_dir)
+    return info[0] if info else None
+
+
+def stored_port(otel_dir: Path) -> int:
+    """Port of the running collector, else the default (status/env follow `up --port`)."""
+    info = running(otel_dir)
+    return info[1] if info else DEFAULT_PORT
 
 
 def up(otel_dir: Path, port: int = DEFAULT_PORT) -> int:
@@ -80,7 +109,7 @@ def up(otel_dir: Path, port: int = DEFAULT_PORT) -> int:
 
 
 def down(otel_dir: Path) -> bool:
-    pid = running_pid(otel_dir)
+    pid = running_pid(otel_dir)  # verified to be our collector, not a reused pid
     if pid is None:
         return False
     os.kill(pid, signal.SIGTERM)

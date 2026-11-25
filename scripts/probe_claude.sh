@@ -10,7 +10,7 @@ MODEL="${1:-claude-haiku-5-5}"
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 VERSION="$(claude --version | awk '{print $1}')"
 DEST="$REPO/tests/fixtures/claude/$VERSION"
-TMP="$(mktemp -d -t sf-probe)"
+TMP="$(mktemp -d "${TMPDIR:-/tmp}/sf-probe.XXXXXX")"  # GNU + BSD compatible
 trap 'rm -rf "$TMP"' EXIT
 
 PLUGIN="$TMP/plugin"
@@ -44,11 +44,11 @@ for e in ("PreToolUse", "PostToolUse", "PostToolUseFailure"):
 json.dump({"hooks": hooks}, open(path, "w"), indent=2)
 PY
 
-run() {  # $1 = case name, $2 = prompt
+run() {  # $1 = case name, $2 = prompt. A failed capture aborts the probe (fixtures untouched).
   local name="$1" prompt="$2"
   mkdir -p "$RAW/$name"
   echo ">> probe: $name"
-  ( cd "$WORK" && SF_PROBE_OUT="$RAW/$name" claude -p "$prompt" \
+  if ! ( cd "$WORK" && SF_PROBE_OUT="$RAW/$name" claude -p "$prompt" \
       --plugin-dir "$PLUGIN" \
       --setting-sources project,local \
       --model "$MODEL" \
@@ -56,11 +56,19 @@ run() {  # $1 = case name, $2 = prompt
       --max-turns 8 --max-budget-usd 0.50 \
       --allowedTools "Bash(echo:*)" "Bash(ls:*)" "Skill" \
       --no-session-persistence \
-      < /dev/null > "$RAW/$name/stream.jsonl" ) || echo "   (claude exited non-zero; keeping output)"
+      < /dev/null > "$RAW/$name/stream.jsonl" ); then
+    echo "!! claude failed for $name; keeping the existing fixtures. Raw output: $RAW/$name" >&2
+    trap - EXIT  # keep $TMP for inspection
+    exit 1
+  fi
 }
 
 run model_triggered "Run the probe-echo skill."
 run user_triggered "/sf-probe:probe-echo"
+# A path outside the working dirs is blocked by permissions: neither post-tool hook fires.
+run permission_blocked "Run exactly this with the Bash tool and nothing else: ls /nonexistent-sf-probe-outside"
 
+# sanitize.py validates every case in a staging dir and only then replaces $DEST
 python3 "$REPO/scripts/probe/sanitize.py" "$RAW" "$DEST" "$TMP"
-echo "fixtures written to $DEST"
+echo "$VERSION" > "$REPO/.claude-version"  # the contract tests read fixtures for the pinned version
+echo "fixtures written to $DEST; .claude-version = $VERSION"

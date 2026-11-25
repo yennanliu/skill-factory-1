@@ -14,7 +14,7 @@ from ruamel.yaml import YAML
 
 from skill_factory.compile.backend import Backend
 from skill_factory.lint import RULES, lint_skill
-from skill_factory.lint.rules import Finding
+from skill_factory.lint.rules import Finding, _steps
 from skill_factory.market.build import MARKER_RE
 from skill_factory.spec import SkillDir, discover, load_skill, spec_sha256
 
@@ -114,6 +114,8 @@ def pick_exemplars(root: Path, exclude: str, n: int = 2) -> list[SkillDir]:
             candidates.append(load_skill(path))
         except Exception:
             continue
+    # an uncompiled stub (`sf new`) or a body with no numbered steps is not house style
+    candidates = [s for s in candidates if "Not compiled yet" not in s.body and _steps(s.body)]
     candidates.sort(key=lambda s: (len(s.spec.lint_waivers), s.name))
     return candidates[:n]
 
@@ -150,7 +152,11 @@ def render_skill_md(skill: SkillDir, description: str, body: str) -> str:
     """Frontmatter from the spec (+ allowed-tools) + body + spec-hash marker."""
     yaml = YAML()
     yaml.width = 4096
-    fm: dict[str, Any] = {"name": skill.spec.name, "description": " ".join(description.split())}
+    # Keep every existing frontmatter key (argument-hint, disable-model-invocation, ...);
+    # only name and description are compiled.
+    fm: dict[str, Any] = {**skill.frontmatter}
+    fm["name"] = skill.spec.name
+    fm["description"] = " ".join(description.split())
     tools = skill.frontmatter.get("allowed-tools") or ", ".join(
         t for t in skill.spec.tools.required if t not in skill.spec.tools.forbidden
     )
@@ -168,7 +174,8 @@ def render_skill_md(skill: SkillDir, description: str, body: str) -> str:
 def _lint_candidate(skill: SkillDir, skill_md: str) -> list[Finding]:
     with tempfile.TemporaryDirectory() as tmp:
         cand = Path(tmp) / skill.name
-        shutil.copytree(skill.path, cand, ignore=shutil.ignore_patterns("evals", "SKILL.md.new"))
+        # evals/ stays in: SF013 (external side effects need a mocked eval) reads it
+        shutil.copytree(skill.path, cand, ignore=shutil.ignore_patterns("SKILL.md.new"))
         (cand / "SKILL.md").write_text(skill_md)
         return lint_skill(cand).findings
 
@@ -198,7 +205,7 @@ def compile_skill(
     return CompileResult(skill.name, skill_md, cases, findings, attempts, total_cost)
 
 
-def case_yaml(case: dict[str, Any]) -> str:
+def case_yaml(case: dict[str, Any], tools: list[str] | None = None) -> str:
     graders = []
     for g in case["graders"]:
         entry = {k: v for k, v in g.items() if v not in (None, "")}
@@ -222,7 +229,9 @@ def case_yaml(case: dict[str, Any]) -> str:
         "execution": {
             "prompt": case["prompt"],
             "max_turns": 20,
-            "allowed_tools": ["Read", "Glob", "Grep", "Skill"],
+            # read-only tools + Skill; gated tools (Bash/Write/...) are granted by `sf eval`
+            # from the spec's tools.required
+            "allowed_tools": list(dict.fromkeys(["Read", "Glob", "Grep", *(tools or []), "Skill"])),
         },
         "graders": graders,
     }
@@ -252,8 +261,38 @@ def js_regex(pattern: str, flags: str) -> tuple[str, str]:
     m = INLINE_FLAGS.match(pattern)
     if not m:
         return pattern, flags
-    extra = "".join(f for f in m.group(1) if f in "ims" and f not in flags)  # JS has no x flag
-    return pattern[m.end() :], flags + extra
+    inline = m.group(1)
+    rest = pattern[m.end() :]
+    if "x" in inline:  # JS has no verbose flag: drop the whitespace and comments it ignored
+        rest = strip_verbose(rest)
+    extra = "".join(f for f in inline if f in "ims" and f not in flags)
+    return rest, flags + extra
+
+
+def strip_verbose(pattern: str) -> str:
+    """Remove unescaped whitespace and #-comments outside character classes (re.X semantics)."""
+    out: list[str] = []
+    i, in_class = 0, False
+    while i < len(pattern):
+        c = pattern[i]
+        if c == "\\" and i + 1 < len(pattern):
+            out.append(pattern[i : i + 2])
+            i += 2
+            continue
+        if in_class:
+            in_class = c != "]"
+            out.append(c)
+        elif c == "[":
+            in_class = True
+            out.append(c)
+        elif c == "#":
+            while i < len(pattern) and pattern[i] != "\n":
+                i += 1
+            continue
+        elif not c.isspace():
+            out.append(c)
+        i += 1
+    return "".join(out)
 
 
 def slug(name: str) -> str:
@@ -272,7 +311,8 @@ def write_outputs(skill: SkillDir, result: CompileResult, apply: bool) -> tuple[
         if case_dir.exists():
             continue  # never overwrite a reviewed case
         case_dir.mkdir(parents=True)
-        (case_dir / "case.yaml").write_text(case_yaml({**case, "name": slug(case["name"])}))
+        tools = [t for t in skill.spec.tools.required if t not in skill.spec.tools.forbidden]
+        (case_dir / "case.yaml").write_text(case_yaml({**case, "name": slug(case["name"])}, tools))
         written.append(case_dir / "case.yaml")
     return target, written
 

@@ -24,3 +24,19 @@ def test_changed_skills(repo: Path) -> None:
     (repo / "skills" / "alpha" / "references").mkdir()
     (repo / "skills" / "alpha" / "references" / "new.md").write_text("x\n")  # untracked
     assert changed_skills(repo) == ["alpha", "beta"]
+
+
+def test_changed_skills_with_base_ignores_upstream_changes(repo: Path) -> None:
+    git(repo, "init", "-q", "-b", "main")
+    git(repo, "add", "-A")
+    git(repo, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-qm", "init")
+    git(repo, "checkout", "-qb", "feature")
+    md = repo / "skills" / "alpha" / "SKILL.md"
+    md.write_text(md.read_text() + "\nfeature\n")
+    git(repo, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-qam", "feat")
+    git(repo, "checkout", "-q", "main")
+    beta = repo / "skills" / "beta" / "SKILL.md"
+    beta.write_text(beta.read_text() + "\nupstream\n")
+    git(repo, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-qam", "up")
+    git(repo, "checkout", "-q", "feature")
+    assert changed_skills(repo, "main") == ["alpha"]  # beta changed only on main

@@ -6,7 +6,7 @@ asserts every fact below, so a CLI upgrade that changes them fails CI.
 
 - **Version probed:** 2.1.331 (pinned in `.claude-version`)
 - **Probe:** a throwaway plugin `sf-probe` with skill `probe-echo` and a hook on every relevant event that dumps
-  stdin. Two runs: `model_triggered` ("Run the probe-echo skill.") and `user_triggered` (`/sf-probe:probe-echo`).
+  stdin. Three runs: `model_triggered` ("Run the probe-echo skill."), `user_triggered` (`/sf-probe:probe-echo`) and `permission_blocked` (an `ls` outside the working dir).
 - **Re-probe** whenever Claude Code is upgraded: `scripts/probe_claude.sh` (costs about $0.01 on Haiku), then
   update `.claude-version`.
 
@@ -40,7 +40,7 @@ Common fields on every event: `session_id`, `transcript_path`, `cwd`, `hook_even
 | `Stop` | `last_assistant_message`, `stop_hook_active`, `background_tasks`, `session_crons` |
 | `SessionEnd` | (common fields) |
 
-A failing tool call fires `PostToolUseFailure` **instead of** `PostToolUse`. A permission block (e.g. a path outside
+A failing tool call fires `PostToolUseFailure` **instead of** `PostToolUse` (`error` starts with `Exit code <n>`, n is platform-dependent: GNU `ls` exits 2, BSD 1). A permission block (e.g. a path outside
 the working dirs) fires neither; the stream shows `system/permission_denied`.
 
 ## 3. Headless stream-json (`claude -p --output-format stream-json --verbose`)
