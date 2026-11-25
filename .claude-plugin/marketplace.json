@@ -23,6 +23,11 @@
       "description": "Python web development skills (FastAPI)."
     },
     {
+      "name": "sf-experimental",
+      "source": "./plugins/sf-experimental",
+      "description": "New skills that have not passed evals yet."
+    },
+    {
       "name": "sf-platform",
       "source": "./plugins/sf-platform",
       "description": "Always-on platform skills and telemetry hooks."
