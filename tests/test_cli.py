@@ -40,3 +40,17 @@ def test_spec_validate_fails_on_bad_skill(repo, monkeypatch) -> None:  # type: i
     (repo / "skills" / "alpha" / "SKILL.md").write_text("no frontmatter\n")
     result = runner.invoke(app, ["spec", "validate"])
     assert result.exit_code == 1
+
+
+def test_release_reports_rebuild_failure(repo, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.chdir(repo)
+    import skill_factory.cli as cli
+    from skill_factory.market import BuildError
+
+    def broken(_root):  # type: ignore[no-untyped-def]
+        raise BuildError(["boom"])
+
+    monkeypatch.setattr(cli, "build", broken)
+    out = runner.invoke(app, ["release", "alpha"])
+    assert out.exit_code == 1
+    assert "versions were bumped" in out.output and "boom" in out.output

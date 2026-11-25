@@ -13,7 +13,7 @@ triggers:
 outputs:
   - code following the recommended layout and patterns
 tools:
-  required: [Read, Write, Edit, Grep, Glob, Bash]
+  required: [Read, Write, Edit, Grep, Glob, Bash, LSP]
   forbidden: []
   scripts: []
 targets:

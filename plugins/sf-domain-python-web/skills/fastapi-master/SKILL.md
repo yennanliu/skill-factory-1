@@ -140,7 +140,7 @@ settings = Settings()
 
 ```python
 # app/schemas/user.py
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from typing import Optional
 from datetime import datetime
 
@@ -156,8 +156,16 @@ class UserCreate(UserBase):
 
 
 class UserUpdate(BaseModel):
+    # Omit a field to leave it unchanged; an explicit null email is rejected.
     email: Optional[EmailStr] = None
     full_name: Optional[str] = None
+
+    @field_validator("email")
+    @classmethod
+    def email_not_null(cls, v: Optional[EmailStr]) -> EmailStr:
+        if v is None:
+            raise ValueError("email cannot be null")
+        return v
 
 
 class UserInDB(UserBase):
@@ -180,13 +188,13 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.services.auth import decode_access_token
+from app.core.security import decode_access_token
 from app.models.user import User
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/auth/login")
 
 
-async def get_current_user(
+def get_current_user(
     token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
 ) -> User:
     credentials_exception = HTTPException(
@@ -199,8 +207,10 @@ async def get_current_user(
     if payload is None:
         raise credentials_exception
 
-    user_id: int = payload.get("sub")
-    if user_id is None:
+    # PyJWT requires a string `sub`; tokens are created with {"sub": str(user.id)}.
+    try:
+        user_id = int(payload.get("sub"))
+    except (TypeError, ValueError):
         raise credentials_exception
 
     user = db.query(User).filter(User.id == user_id).first()
@@ -210,7 +220,7 @@ async def get_current_user(
     return user
 
 
-async def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
+def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
     if not current_user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
@@ -233,7 +243,7 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 
 @router.post("/", response_model=User, status_code=status.HTTP_201_CREATED)
-async def create_user(user_in: UserCreate, db: Session = Depends(get_db)):
+def create_user(user_in: UserCreate, db: Session = Depends(get_db)):
     """
     Create a new user.
 
@@ -253,13 +263,13 @@ async def create_user(user_in: UserCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/me", response_model=User)
-async def read_users_me(current_user: User = Depends(get_current_active_user)):
+def read_users_me(current_user: User = Depends(get_current_active_user)):
     """Get current user information."""
     return current_user
 
 
 @router.get("/{user_id}", response_model=User)
-async def read_user(
+def read_user(
     user_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
@@ -272,7 +282,7 @@ async def read_user(
 
 
 @router.patch("/{user_id}", response_model=User)
-async def update_user(
+def update_user(
     user_id: int,
     user_in: UserUpdate,
     db: Session = Depends(get_db),
@@ -294,7 +304,7 @@ async def update_user(
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_user(
+def delete_user(
     user_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
@@ -387,6 +397,7 @@ def get_password_hash(password: str) -> str:
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    # Call with {"sub": str(user.id)}: PyJWT rejects non-string subjects.
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
@@ -477,6 +488,7 @@ def test_create_user(client):
 ```txt
 fastapi[all]
 uvicorn[standard]
+gunicorn  # only for the gunicorn + uvicorn-workers command below
 pyjwt
 pwdlib[argon2]
 sqlalchemy
@@ -529,4 +541,4 @@ When providing FastAPI code:
 - Demonstrate proper dependency injection
 - Provide working, production-ready code
 
-<!-- sf:spec-sha256=27af9e3887f726cf5af87699f06a3680e25ce0f84c10f1474140b7af834d3448 sf:version=1.0.0 -->
+<!-- sf:spec-sha256=7ea5585a05667c1ecd5403f11fb305aafe4a7524a89386d580249cd9881380b6 sf:version=1.0.0 -->

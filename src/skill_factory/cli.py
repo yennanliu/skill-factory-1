@@ -140,7 +140,13 @@ def release_cmd(
     console.print(f"{r.skill}: {r.skill_from} -> {r.skill_to}")
     console.print(f"{r.plugin}: {r.plugin_from} -> {r.plugin_to}")
     if not no_build:
-        build(root)
+        try:
+            build(root)
+        except BuildError as e:
+            err.print("[yellow]versions were bumped, but the rebuild failed:[/]")
+            for p in e.problems:
+                err.print(f"[red]error:[/] {p}")
+            raise typer.Exit(1) from e
         console.print("rebuilt plugins/")
 
 
