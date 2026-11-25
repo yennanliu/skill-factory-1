@@ -59,7 +59,7 @@ footer { margin-top: 32px; color: var(--muted); font-size: 12px; }
 <thead><tr>
   <th>skill</th><th>tier</th><th class="num">calls</th><th class="num">model/user</th>
   <th class="num">cost/call</th><th class="num">p90</th><th class="num">errors</th>
-  <th>eval</th><th class="num">pass</th><th class="num">baseline</th><th>verdict</th><th>last 14 days</th>
+  <th>eval</th><th class="num">pass</th><th class="num">baseline</th><th>verdict</th><th>last {{ days }} days</th>
 </tr></thead>
 <tbody>
 {% for r in rows %}
@@ -94,16 +94,16 @@ footer { margin-top: 32px; color: var(--muted); font-size: 12px; }
   <dl>
     <dt>owner</dt><dd>{{ r.owner }}</dd>
     <dt>context cost</dt><dd>~{{ r.always_on_tokens }} tok always-on · ~{{ r.on_invoke_tokens }} tok per call</dd>
-    <dt>usage</dt><dd>{{ r.usage.calls }} calls · {{ r.usage.sessions }} sessions · {{ r.usage.repos }} repos ·
+    <dt>usage</dt><dd>{{ r.usage.calls }} calls · {{ r.usage.sessions }} sessions · {{ "-" if r.usage.repos is none else r.usage.repos }} repos ·
       {{ r.usage.active_weeks }} active week{{ '' if r.usage.active_weeks == 1 else 's' }}{{ ' · retained' if r.usage.retained }}</dd>
     <dt>cost</dt><dd>{{ r.usage.cost_total|money }} total · {{ r.usage.cost_mean|money }} mean · {{ r.usage.cost_p90|money }} p90
       {% if r.target_cost_usd %}· target {{ r.target_cost_usd|money }}{% endif %}
       {% if r.usage.requests_mean %}· {{ '%.1f'|format(r.usage.requests_mean) }} requests/call{% endif %}</dd>
-    <dt>versions seen</dt><dd>{{ r.usage.versions|join(', ') or '-' }}</dd>
+    <dt>versions in use</dt><dd>{{ r.usage.versions|join(', ') or '-' }}</dd>
     <dt>used with</dt><dd>{% for other, n in r.usage.co_used[:3] %}{{ other }} ({{ n }}){{ ', ' if not loop.last }}{% else %}-{% endfor %}</dd>
     <dt>lint waivers</dt><dd>{{ r.waivers|join(', ') or 'none' }}</dd>
     {% if r.eval %}
-    <dt>eval</dt><dd>{{ r.eval.when }} · {{ r.eval.model or 'default model' }} · {{ r.eval.runs }} runs · {{ r.eval.cost_usd|money }}<br>
+    <dt>eval</dt><dd>{{ r.eval.when }} · {{ r.eval.model or 'default model' }} · {{ r.eval.runs }} runs · {{ r.eval.cost_usd|money }}{% if r.eval.partial %} · <span class="bad">partial run</span>{% endif %}{% if r.eval.version and r.eval.version != r.version %} · <span class="warn">ran on {{ r.eval.version }}</span>{% endif %}<br>
       pass {{ r.eval.pass_rate|pct }} (95% CI {{ r.eval.interval[0]|pct }}–{{ r.eval.interval[1]|pct }}) vs baseline {{ r.eval.baseline_pass_rate|pct }}</dd>
     <dt>cases</dt><dd>
       {% for c in r.eval.cases %}<code>{{ c.name }}</code> {{ c.passes }}/{{ c.runs }}{% if c.baseline_pass_rate is not none %} (base {{ c.baseline_pass_rate|pct }}){% endif %}{% if c.fired_runs is not none and c.fired_runs < c.runs %} <span class="warn">fired {{ c.fired_runs }}/{{ c.runs }}</span>{% endif %}<br>{% endfor %}

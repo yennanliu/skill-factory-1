@@ -12,7 +12,11 @@ def test_help_lists_commands() -> None:
     assert "version" in result.output
 
 
-def test_version_prints_sf_version() -> None:
+def test_version_prints_sf_version(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    import skill_factory.cli as cli
+
+    # never start the real `claude` binary from a unit test
+    monkeypatch.setattr(cli, "_installed_claude_version", lambda: "9.9.9")
     result = runner.invoke(app, ["version"])
     assert result.exit_code == 0
     assert f"sf {__version__}" in result.output
@@ -126,3 +130,48 @@ def test_new_and_compile_cli(repo, monkeypatch) -> None:  # type: ignore[no-unty
     assert "SKILL.md.new" in out.output and "+description: Does fresh" in out.output
     assert runner.invoke(app, ["compile", "--check"]).exit_code == 0
     assert runner.invoke(app, ["compile"]).exit_code == 2
+
+
+def test_release_reports_rebuild_failure(repo, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.chdir(repo)
+    import skill_factory.cli as cli
+    from skill_factory.market import BuildError
+
+    def broken(_root):  # type: ignore[no-untyped-def]
+        raise BuildError(["boom"])
+
+    monkeypatch.setattr(cli, "build", broken)
+    out = runner.invoke(app, ["release", "alpha"])
+    assert out.exit_code == 1
+    assert "versions were bumped" in out.output and "boom" in out.output
+
+
+def test_lint_changed_edge_cases(repo, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    import json
+    import subprocess
+
+    monkeypatch.chdir(repo)
+    bad = runner.invoke(app, ["lint", "--changed"])  # not a git repo
+    assert bad.exit_code == 2 and "git failed" in bad.output
+    for args in (
+        ["init", "-q", "-b", "main"],
+        ["add", "-A"],
+        ["-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-qm", "i"],
+    ):
+        subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True)
+    out = runner.invoke(app, ["lint", "--changed", "--format", "json"])
+    assert out.exit_code == 0 and json.loads(out.output)["skills"] == []
+    assert runner.invoke(app, ["lint", "alpha", "--changed"]).exit_code == 2
+
+
+def test_untrusted_text_is_not_rich_markup(repo, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.chdir(repo)
+    (repo / "skills" / "alpha" / "spec.yaml").write_text("name: [/oops]\n")
+    out = runner.invoke(app, ["spec", "validate"])
+    assert out.exit_code == 1 and "MarkupError" not in repr(out.exception)
+
+
+def test_eval_rejects_bad_jobs_and_runs(repo, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.chdir(repo)
+    assert runner.invoke(app, ["eval", "alpha", "-j", "16"]).exit_code == 2
+    assert runner.invoke(app, ["eval", "alpha", "--runs", "0"]).exit_code == 2

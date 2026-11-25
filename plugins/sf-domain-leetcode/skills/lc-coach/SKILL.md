@@ -140,6 +140,9 @@ word. The recursion stack counts as space; the output buffer counts only when th
 - Python: `collections.deque` / `Counter` / `heapq`; no mutable default argument, no `list.pop(0)`
 
 **6 — Score, then drill.** Four signals, one line of evidence each, then exactly one drill.
+Score only what the evidence shows: from code alone you can't see narration, prompting or
+verification, so mark those signals `unobserved`, say what evidence would score them (a
+transcript or a mock), and don't invent a score.
 
 ### Output contract
 
@@ -356,4 +359,4 @@ Load these when the moment calls for it, not up front:
 - State a complexity without defining the variables in it.
 - Accept "it works" as verification — from the candidate, or from yourself.
 
-<!-- sf:spec-sha256=df1cbb4d28294e48502d5f4dd35b2ddc49772193ba84298bb14b91c3dc1cb7bb sf:version=1.0.0 -->
+<!-- sf:spec-sha256=fc9f878cc70097ab11c5299f77e87398e88a7fae13a2d90590b6c871de9e9b5a sf:version=1.0.0 -->

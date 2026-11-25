@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -36,6 +37,15 @@ def budget() -> float | None:
 
 
 def last_skill(session_id: str) -> str | None:
+    # Preferred: the telemetry hook's per-session state (unaffected by other busy sessions).
+    safe = re.sub(r"[^A-Za-z0-9_-]", "_", session_id)[:80] or "unknown"
+    try:
+        state = json.loads((sf_home() / "telemetry" / "sessions" / f"{safe}.json").read_text())
+        if state.get("last_skill"):
+            return str(state["last_skill"])
+    except (OSError, ValueError, AttributeError):
+        pass
+    # Fallback: scan the tail of the shared events file.
     path = sf_home() / "telemetry" / "events.jsonl"
     try:
         with path.open("rb") as f:

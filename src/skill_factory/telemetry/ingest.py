@@ -35,6 +35,7 @@ HOOK_COLS = [
     "tool",
     "error_code",
     "cwd_hash",
+    "interrupted",
 ]
 OTEL_COLS = [
     "ts",
@@ -60,7 +61,7 @@ DDL = """
 CREATE OR REPLACE TABLE hook_events (
   ts TIMESTAMP, event VARCHAR, session_id VARCHAR, skill VARCHAR, plugin VARCHAR,
   qualified VARCHAR, trigger VARCHAR, model VARCHAR, tool VARCHAR, error_code INTEGER,
-  cwd_hash VARCHAR);
+  cwd_hash VARCHAR, interrupted BOOLEAN);
 CREATE OR REPLACE TABLE otel_events (
   ts TIMESTAMP, event VARCHAR, session_id VARCHAR, prompt_id VARCHAR, qualified VARCHAR,
   trigger VARCHAR, model VARCHAR, cost_usd DOUBLE, input_tokens BIGINT, output_tokens BIGINT,
@@ -92,12 +93,14 @@ def _num(v: Any, cast: type = float) -> Any:
 def iter_hook_events(path: Path) -> Iterator[tuple[Any, ...]]:
     if not path.is_file():
         return
-    for line in path.read_text().splitlines():
-        try:
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        try:  # a torn or hand-edited line must not break reporting
             e = json.loads(line)
-        except ValueError:
-            continue  # a torn line must not break reporting
-        row = {**e, "ts": _ts(e.get("ts"))}
+            if not isinstance(e, dict):
+                continue
+            row = {**e, "ts": _ts(e.get("ts"))}
+        except (ValueError, TypeError, AttributeError):
+            continue
         yield tuple(row.get(c) for c in HOOK_COLS)
 
 
@@ -110,35 +113,42 @@ def iter_otel_events(path: Path) -> Iterator[tuple[Any, ...]]:
             req = json.loads(line)
         except ValueError:
             continue
+        if not isinstance(req, dict):
+            continue
         for rl in req.get("resourceLogs", []):
             for sl in rl.get("scopeLogs", []):
                 for rec in sl.get("logRecords", []):
-                    a = {
-                        x["key"]: _attr_value(x.get("value", {})) for x in rec.get("attributes", [])
-                    }
-                    name = a.get("event.name") or str(rec.get("body", {}).get("stringValue", ""))
-                    success = a.get("success")
-                    yield (
-                        _ts(a.get("event.timestamp")),
-                        name.removeprefix("claude_code."),
-                        a.get("session.id"),
-                        a.get("prompt.id"),
-                        a.get("skill.name"),
-                        OTEL_TRIGGERS.get(
-                            str(a.get("invocation_trigger")), a.get("invocation_trigger")
-                        ),
-                        a.get("model"),
-                        _num(a.get("cost_usd")),
-                        _num(a.get("input_tokens"), int),
-                        _num(a.get("output_tokens"), int),
-                        _num(a.get("cache_read_tokens"), int),
-                        _num(a.get("cache_creation_tokens"), int),
-                        a.get("tool_name"),
-                        None if success is None else str(success).lower() == "true",
-                        _num(a.get("duration_ms"), int),
-                        a.get("plugin.name"),
-                        a.get("plugin.version"),
-                    )
+                    try:
+                        row = _otel_row(rec)
+                    except (KeyError, TypeError, ValueError, AttributeError):
+                        continue  # one malformed record must not break reporting
+                    yield row
+
+
+def _otel_row(rec: dict[str, Any]) -> tuple[Any, ...]:
+    """One otel_events row from a claude_code.* log record."""
+    a = {x["key"]: _attr_value(x.get("value", {})) for x in rec.get("attributes", [])}
+    name = a.get("event.name") or str(rec.get("body", {}).get("stringValue", ""))
+    success = a.get("success")
+    return (
+        _ts(a.get("event.timestamp")),
+        name.removeprefix("claude_code."),
+        a.get("session.id"),
+        a.get("prompt.id"),
+        a.get("skill.name"),
+        OTEL_TRIGGERS.get(str(a.get("invocation_trigger")), a.get("invocation_trigger")),
+        a.get("model"),
+        _num(a.get("cost_usd")),
+        _num(a.get("input_tokens"), int),
+        _num(a.get("output_tokens"), int),
+        _num(a.get("cache_read_tokens"), int),
+        _num(a.get("cache_creation_tokens"), int),
+        a.get("tool_name"),
+        None if success is None else str(success).lower() == "true",
+        _num(a.get("duration_ms"), int),
+        a.get("plugin.name"),
+        a.get("plugin.version"),
+    )
 
 
 def connect(events_file: Path, otel_logs_file: Path) -> duckdb.DuckDBPyConnection:

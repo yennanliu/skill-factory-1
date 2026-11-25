@@ -15,10 +15,13 @@ def changed_files(root: Path, base: str | None = None) -> list[str]:
         ).stdout
         return [line for line in out.splitlines() if line]
 
-    files = set(git("diff", "--name-only", base or "HEAD"))
-    if base:
-        files |= set(git("diff", "--name-only", f"{base}...HEAD"))
+    # Working-tree changes vs HEAD (staged + unstaged) and untracked files...
+    files = set(git("diff", "--name-only", "HEAD"))
     files |= set(git("ls-files", "--others", "--exclude-standard"))
+    if base:
+        # ...plus what this branch changed since it left `base` (three dots: changes that
+        # landed on `base` meanwhile are not ours).
+        files |= set(git("diff", "--name-only", f"{base}...HEAD"))
     return sorted(files)
 
 

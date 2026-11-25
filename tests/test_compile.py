@@ -162,6 +162,8 @@ def test_js_regex(pattern: str, flags: str, expected: tuple[str, str]) -> None:
 
 
 def test_render_keeps_existing_allowed_tools(repo: Path) -> None:
+    spec = repo / "skills" / "alpha" / "spec.yaml"
+    spec.write_text(spec.read_text() + "tools:\n  required: [Read, Bash]\n")
     md = repo / "skills" / "alpha" / "SKILL.md"
     md.write_text(md.read_text().replace("description:", "allowed-tools: Read, Bash\ndescription:"))
     out = render_skill_md(load_skill(repo / "skills" / "alpha"), "d.\n  Use when x.", "# A\n")

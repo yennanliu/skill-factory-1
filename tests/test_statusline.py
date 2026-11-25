@@ -85,3 +85,32 @@ def test_install_writes_statusline_and_keeps_other_settings(tmp_path: Path) -> N
     settings.write_text(new)
     assert plan_settings(settings, script)[0] == plan_settings(settings, script)[1]  # idempotent
     assert plan_settings(tmp_path / "missing.json", script)[0] == "{}\n"
+
+
+def test_last_skill_prefers_session_state(home: Path) -> None:
+    (home / "telemetry" / "sessions").mkdir()
+    (home / "telemetry" / "sessions" / "s1.json").write_text(json.dumps({"last_skill": "fresh"}))
+    assert load().render(DATA).endswith("· fresh")
+
+
+def test_install_is_idempotent_across_formatting_and_keeps_unicode(tmp_path: Path) -> None:
+    script = tmp_path / "sf_statusline.py"
+    settings = tmp_path / "settings.json"
+    settings.write_text(json.dumps({"note": "中文"}, ensure_ascii=False))
+    _, new, _ = plan_settings(settings, script)
+    assert "中文" in new
+    settings.write_text(json.dumps(json.loads(new), indent=4, ensure_ascii=False))  # reformatted
+    old2, new2, _ = plan_settings(settings, script)
+    assert old2 == new2
+
+
+def test_invalid_settings_is_a_clean_error(tmp_path: Path) -> None:
+    from skill_factory.statusline import SettingsError
+
+    bad = tmp_path / "settings.json"
+    bad.write_text("{trailing,}")
+    with pytest.raises(SettingsError, match="not valid JSON"):
+        plan_settings(bad, tmp_path / "s.py")
+    bad.write_text("[]")
+    with pytest.raises(SettingsError, match="JSON object"):
+        plan_settings(bad, tmp_path / "s.py")

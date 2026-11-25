@@ -39,6 +39,7 @@ def render(
     since: datetime,
     generated: datetime,
     sources: dict[str, str],
+    days: int = 14,
 ) -> str:
     env = Environment(autoescape=select_autoescape(["html"]), trim_blocks=True, lstrip_blocks=True)
     env.filters.update(money=money, pct=pct, sparkline=sparkline)
@@ -53,4 +54,5 @@ def render(
         total_calls=sum(r.usage.calls for r in rows),
         total_cost=total_cost,
         evaluated=sum(r.eval is not None for r in rows),
+        days=days,
     )

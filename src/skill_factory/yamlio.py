@@ -18,10 +18,10 @@ def _yaml() -> YAML:
 
 
 def load(path: Path) -> Any:
-    return _yaml().load(path.read_text())
+    return _yaml().load(path.read_text(encoding="utf-8"))
 
 
 def dump(data: Any, path: Path) -> None:
     buf = StringIO()
     _yaml().dump(data, buf)
-    path.write_text(buf.getvalue())
+    path.write_text(buf.getvalue(), encoding="utf-8")

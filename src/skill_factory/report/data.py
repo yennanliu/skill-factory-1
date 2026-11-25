@@ -20,7 +20,7 @@ class Usage:
     model_calls: int = 0
     user_calls: int = 0
     sessions: int = 0
-    repos: int = 0  # distinct working-directory hashes (hook events)
+    repos: int | None = None  # distinct working-directory hashes (hook events only)
     active_weeks: int = 0
     cost_total: float | None = None
     cost_mean: float | None = None  # per activation (OTel)
@@ -48,6 +48,8 @@ class EvalSnapshot:
     runs: int
     cost_usd: float
     cases: list[dict[str, Any]]
+    partial: bool = False
+    version: str | None = None  # skill version the eval ran against
 
     @property
     def lift(self) -> float | None:
@@ -113,6 +115,8 @@ def latest_eval(runs_dir: Path, skill: str) -> EvalSnapshot | None:
         runs=s.get("runs", 0),
         cost_usd=s.get("total_cost_usd", 0.0),
         cases=s.get("cases", []),
+        partial=bool(s.get("partial")),
+        version=s.get("version"),
     )
 
 
@@ -129,12 +133,17 @@ FROM act a LEFT JOIN req r USING (session_id, prompt_id, qualified)
 GROUP BY 1
 """
 
+# One row per invocation. With both sources on, the same call is logged twice, so (like
+# sf stats) OTel wins for a skill whenever it has OTel rows; hook rows fill in otherwise.
 CALL_EVENTS = """
-SELECT qualified, session_id, ts, NULL AS cwd_hash FROM otel_events
-  WHERE event = 'skill_activated' AND ts >= TIMESTAMP '{since}'
+WITH o AS (
+  SELECT qualified, session_id, ts FROM otel_events
+  WHERE event = 'skill_activated' AND ts >= TIMESTAMP '{since}')
+SELECT qualified, session_id, ts FROM o
 UNION ALL
-SELECT qualified, session_id, ts, cwd_hash FROM hook_events
+SELECT qualified, session_id, ts FROM hook_events
   WHERE event = 'skill_invoked' AND ts >= TIMESTAMP '{since}'
+    AND qualified NOT IN (SELECT DISTINCT qualified FROM o)
 """
 
 
@@ -152,23 +161,30 @@ def usage_by_skill(
     # DDL can't take bound parameters; `since` is a datetime we built, rendered as ISO text.
     view = CALL_EVENTS.format(since=since.isoformat(sep=" "))
     con.execute(f"CREATE OR REPLACE TEMP VIEW calls AS {view}")
-    for q, weeks, repos in con.execute(
-        "SELECT qualified, count(DISTINCT date_trunc('week', ts)), "
-        "count(DISTINCT cwd_hash) FROM calls GROUP BY 1"
+    for q, weeks in con.execute(
+        "SELECT qualified, count(DISTINCT date_trunc('week', ts)) FROM calls GROUP BY 1"
     ).fetchall():
-        u = usage.setdefault(q, Usage())
-        u.active_weeks, u.repos = weeks, repos
+        usage.setdefault(q, Usage()).active_weeks = weeks
+    # Repos come from hook events only (OTel has no cwd); without hook data it stays unknown.
+    for q, repos in con.execute(
+        "SELECT qualified, count(DISTINCT cwd_hash) FROM hook_events "
+        "WHERE event = 'skill_invoked' AND ts >= $since GROUP BY 1",
+        {"since": since},
+    ).fetchall():
+        usage.setdefault(q, Usage()).repos = repos
 
-    start = (until - timedelta(days=days - 1)).date()
+    # The sparkline never starts before the telemetry window (days before it have no data).
+    start = max((until - timedelta(days=days - 1)).date(), since.date())
+    points = (until.date() - start).days + 1
     for q, day, n in con.execute(
         "SELECT qualified, CAST(ts AS DATE), count(*) FROM calls WHERE ts >= $start GROUP BY ALL",
         {"start": start},
     ).fetchall():
         u = usage.setdefault(q, Usage())
         if not u.daily:
-            u.daily = [0] * days
+            u.daily = [0] * points
         idx = (day - start).days
-        if 0 <= idx < days:
+        if 0 <= idx < points:
             u.daily[idx] += n
 
     for q, other, n in con.execute(
@@ -178,18 +194,17 @@ def usage_by_skill(
     ).fetchall():
         usage.setdefault(q, Usage()).co_used.append((other, n))
 
-    for plugin, version in con.execute(
-        "SELECT DISTINCT plugin_name, plugin_version FROM otel_events "
-        "WHERE event = 'plugin_loaded' AND plugin_version IS NOT NULL AND ts >= $since "
-        "ORDER BY 1, 2",
-        {"since": since},
+    # Plugin versions loaded in sessions where the skill actually ran.
+    for q, version in con.execute(
+        "SELECT DISTINCT c.qualified, p.plugin_version FROM calls c JOIN otel_events p "
+        "ON p.session_id = c.session_id AND p.event = 'plugin_loaded' "
+        "AND p.plugin_version IS NOT NULL AND split_part(c.qualified, ':', 1) = p.plugin_name "
+        "ORDER BY 1, 2"
     ).fetchall():
-        for q, u in usage.items():
-            if q.split(":", 1)[0] == plugin and version not in u.versions:
-                u.versions.append(version)
+        usage.setdefault(q, Usage()).versions.append(version)
     for u in usage.values():
         if not u.daily:
-            u.daily = [0] * days
+            u.daily = [0] * points
     return usage
 
 

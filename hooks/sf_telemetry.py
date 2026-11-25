@@ -71,13 +71,22 @@ def build_event(payload: dict[str, Any], base: Path) -> dict[str, Any] | None:
 
     if hook == "SessionStart":
         if session_id:
-            _write_state(base, session_id, {"model": payload.get("model")})
+            # compact/resume keep the session (and its active skill); startup/clear start over
+            keep = state if payload.get("source") in ("compact", "resume") else {}
+            model = payload.get("model") or keep.get("model")
+            _write_state(base, session_id, {**keep, "model": model})
         return {
             **event,
             "event": "session_start",
             "source": payload.get("source"),
             "model": payload.get("model"),
         }
+
+    if hook in ("Stop", "UserPromptSubmit"):
+        # A turn ended (or a new one starts): later tool errors aren't the skill's any more.
+        if session_id and state.get("skill"):
+            _write_state(base, session_id, {k: v for k, v in state.items() if k != "skill"})
+        return None
 
     if hook == "SessionEnd":
         if session_id:
@@ -91,12 +100,22 @@ def build_event(payload: dict[str, Any], base: Path) -> dict[str, Any] | None:
         qualified = str((payload.get("tool_input") or {}).get("skill") or "")
         trigger = "model"
     elif hook == "UserPromptExpansion" and payload.get("expansion_type") == "slash_command":
-        qualified = str(payload.get("command_name") or "")
+        name = str(payload.get("command_name") or "")
+        if payload.get("command_source") != "plugin" and ":" not in name:
+            # a plain custom command (e.g. .claude/commands/deploy.md), not a skill
+            return {
+                **event,
+                "event": "command_invoked",
+                "command": name or None,
+                "source": payload.get("command_source"),
+            }
+        qualified = name
         trigger = "user"
     if qualified:
         plugin, skill = _split(qualified)
         if session_id:
-            _write_state(base, session_id, {**state, "skill": qualified})
+            # `skill` drives error attribution (cleared at turn end); `last_skill` is for display
+            _write_state(base, session_id, {**state, "skill": qualified, "last_skill": skill})
         return {
             **event,
             "event": "skill_invoked",
