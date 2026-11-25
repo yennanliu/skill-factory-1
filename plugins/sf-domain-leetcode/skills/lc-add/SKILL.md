@@ -204,4 +204,4 @@ the statement, a Java link deliberately omitted.
 | 6 | README row inserted after LC 4007, the last row of the hash-table table |
 | 7 | flagged: difficulty inferred from contest position, examples written from the rule |
 
-<!-- sf:spec-sha256=f029111beb890fff5893c9765f465f4b3fabd5ada0c071e23c974b3468db1810 sf:version=1.0.0 -->
+<!-- sf:spec-sha256=c11de62444f2dad32bcd30c6062fdb95fee44e9a11a297eef899a14394a8797b sf:version=1.0.0 -->

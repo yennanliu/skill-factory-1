@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -67,8 +68,19 @@ def parse_frontmatter(text: str) -> tuple[dict[str, Any], str]:
 
 
 def spec_sha256(spec_path: Path) -> str:
-    """Hash of the spec file bytes; recorded in built SKILL.md to detect drift."""
-    return hashlib.sha256(spec_path.read_bytes()).hexdigest()
+    """Hash of the spec's *content*, recorded in SKILL.md to detect drift.
+
+    `version` and comments/formatting are excluded, so `sf release` (which only bumps the
+    version) doesn't make a compiled SKILL.md look stale.
+    """
+    try:
+        data = YAML(typ="safe").load(spec_path.read_text(encoding="utf-8")) or {}
+    except YAMLError:
+        return hashlib.sha256(spec_path.read_bytes()).hexdigest()
+    if isinstance(data, dict):
+        data = {k: v for k, v in data.items() if k != "version"}
+    canonical = json.dumps(data, sort_keys=True, ensure_ascii=False, default=str)
+    return hashlib.sha256(canonical.encode()).hexdigest()
 
 
 def _tool_names(value: Any) -> set[str]:

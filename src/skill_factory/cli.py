@@ -526,6 +526,87 @@ def statusline_install(
     console.print(f"installed {script}; restart Claude Code to see it")
 
 
+@app.command("new")
+def new_cmd(
+    name: Annotated[str, typer.Argument(help="Skill name (kebab-case).")],
+    tier: Annotated[
+        Literal["always-on", "core", "domain", "experimental"], typer.Option(help="Tier.")
+    ] = "experimental",
+    domain: Annotated[str | None, typer.Option(help="Domain (required for tier domain).")] = None,
+    owner: Annotated[str | None, typer.Option(help="Owner (default: market owner).")] = None,
+    goal: Annotated[str | None, typer.Option(help="One-sentence goal.")] = None,
+) -> None:
+    """Scaffold skills/<name>/ with a spec.yaml template, a SKILL.md stub and a starter eval."""
+    from skill_factory.compile.new import NewSkillError, new_skill
+
+    root = _root()
+    try:
+        path = new_skill(root, name, tier, domain, owner, goal)
+    except NewSkillError as e:
+        err.print(f"[red]error:[/] {e}")
+        raise typer.Exit(2) from e
+    console.print(f"created {path.relative_to(root)}/ (spec.yaml, SKILL.md stub, evals/smoke)")
+    console.print(f"next: edit spec.yaml, then `uv run sf compile {name}`")
+
+
+@app.command("compile")
+def compile_cmd(
+    skill: Annotated[str | None, typer.Argument(help="Skill to compile.")] = None,
+    apply: Annotated[bool, typer.Option("--apply", help="Overwrite SKILL.md.")] = False,
+    check: Annotated[
+        bool, typer.Option("--check", help="Fail if any compiled skill's spec changed (CI).")
+    ] = False,
+    backend: Annotated[
+        Literal["claude-cli", "api"], typer.Option(help="claude-cli (default) or api.")
+    ] = "claude-cli",
+    model: Annotated[str, typer.Option(help="Authoring model.")] = "claude-opus-5-5",
+    retries: Annotated[int, typer.Option(min=0, help="Lint-feedback retries.")] = 2,
+) -> None:
+    """Compile spec.yaml into SKILL.md (+ draft eval cases); writes SKILL.md.new unless --apply."""
+    from skill_factory.compile.backend import BackendError, get_backend
+    from skill_factory.compile.core import compile_skill, diff, stale_skills, write_outputs
+
+    root = _root()
+    if check:
+        stale = stale_skills(root)
+        for name, reason in stale:
+            err.print(f"[red]stale:[/] {name}: {reason}; run `uv run sf compile {name} --apply`")
+        if stale:
+            raise typer.Exit(1)
+        console.print("[green]compiled skills match their specs[/]")
+        return
+    if not skill:
+        err.print("[red]error:[/] name a skill, or pass --check")
+        raise typer.Exit(2)
+    try:
+        s = load_skill(root / "skills" / skill)
+    except SkillError as e:
+        err.print(f"[red]error:[/] {e}")
+        raise typer.Exit(2) from e
+    console.print(f"compiling {skill} with {model} via {backend}…")
+    try:
+        result = compile_skill(root, s, get_backend(backend), model, retries)
+    except BackendError as e:
+        err.print(f"[red]error:[/] {e}")
+        raise typer.Exit(1) from e
+    has_errors = any(f.severity == "error" for f in result.findings)
+    if apply and has_errors:
+        err.print("[yellow]lint errors remain: writing SKILL.md.new instead of overwriting[/]")
+    target, cases = write_outputs(s, result, apply and not has_errors)
+    if not apply:
+        print(diff(s.skill_md.read_text(), result.skill_md, f"skills/{skill}/SKILL.md"))
+    cost = f", ${result.cost_usd:.3f}" if result.cost_usd is not None else ""
+    console.print(f"{result.attempts} attempt(s){cost}; wrote {target.relative_to(root)}")
+    for c in cases:
+        console.print(f"  draft eval: {c.relative_to(root)}")
+    for f in result.findings:
+        err.print(f"  [yellow]lint {f.severity}:[/] {f.rule} {f.message}")
+    if not apply:
+        console.print(f"review, then `uv run sf compile {skill} --apply` (or move SKILL.md.new)")
+    if has_errors:
+        raise typer.Exit(1)
+
+
 @app.callback()
 def main() -> None:
     """Skill factory CLI."""
