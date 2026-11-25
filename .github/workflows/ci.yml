@@ -17,9 +17,7 @@ jobs:
   checks:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # sf lint --changed / sf eval --changed diff against the base branch
+      - uses: actions/checkout@v4  # shallow is enough: the checks job lints every skill
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
@@ -83,4 +81,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           cat eval-summary.md >> "$GITHUB_STEP_SUMMARY"
-          gh pr comment "${{ github.event.pull_request.number }}" --body-file eval-summary.md
+          # one sticky comment, updated on every push instead of a new one each time
+          gh pr comment "${{ github.event.pull_request.number }}" --body-file eval-summary.md \
+            --edit-last --create-if-none

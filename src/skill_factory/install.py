@@ -80,14 +80,31 @@ def portable_skill_md(text: str) -> str:
     return f"---\n{buf.getvalue()}---\n\n{body}"
 
 
+def check_sources(planned: list[Planned]) -> None:
+    missing = [
+        p.source for p in planned if p.action in ("install", "update") and not p.source.is_dir()
+    ]
+    if missing:
+        raise FileNotFoundError(f"{', '.join(map(str, missing))} missing; run `sf build` first")
+
+
 def apply(p: Planned, agent: Agent) -> None:
+    """Copy into a temp dir next to the destination, then swap it in: a failure never leaves
+    a half-copied or deleted skill behind."""
     if p.action not in ("install", "update"):
         return
-    if not p.source.is_dir():
-        raise FileNotFoundError(f"{p.source} missing; run `sf build` first")
-    if p.dest.exists():
-        shutil.rmtree(p.dest)
-    shutil.copytree(p.source, p.dest)
-    md = p.dest / "SKILL.md"
+    check_sources([p])
+    staging = p.dest.with_name(f".{p.dest.name}.sf-new")
+    old = p.dest.with_name(f".{p.dest.name}.sf-old")
+    for leftover in (staging, old):
+        if leftover.exists():
+            shutil.rmtree(leftover)
+    shutil.copytree(p.source, staging)
+    md = staging / "SKILL.md"
     md.write_text(portable_skill_md(md.read_text()))
-    (p.dest / MARKER).write_text(f"installed by `sf install --agent {agent}`\n")
+    (staging / MARKER).write_text(f"installed by `sf install --agent {agent}`\n")
+    if p.dest.exists():
+        p.dest.rename(old)
+    staging.rename(p.dest)
+    if old.exists():
+        shutil.rmtree(old)

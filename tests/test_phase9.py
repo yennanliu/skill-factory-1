@@ -157,3 +157,67 @@ def test_repo_agents_and_workflows_are_valid() -> None:
         assert doc["jobs"], wf.name
         text = wf.read_text()
         assert "uv sync --locked" in text  # CI never resolves dependencies fresh
+
+
+def test_agent_timeout_and_os_errors_still_write_a_record(
+    with_agent: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (a,) = agents.load(with_agent).values()
+    monkeypatch.setattr(agents.shutil, "which", lambda _x: "/bin/claude")
+
+    def slow(*args: Any, **kw: Any) -> Any:
+        raise subprocess.TimeoutExpired(args[0], kw["timeout"])
+
+    monkeypatch.setattr(agents.subprocess, "run", slow)
+    rec, path = agents.run(a, with_agent, timeout=7)
+    assert not rec.passed and rec.error and "timed out after 7s" in rec.error and path.is_file()
+
+    def broken(*args: Any, **kw: Any) -> Any:
+        raise OSError("exec format error")
+
+    monkeypatch.setattr(agents.subprocess, "run", broken)
+    rec, _ = agents.run(a, with_agent)
+    assert rec.error and "exec format error" in rec.error
+
+
+def test_agent_names_must_be_unique_and_match_files(with_agent: Path) -> None:
+    (with_agent / "managed" / "other.yaml").write_text(AGENT)  # name: digest
+    with pytest.raises(ValueError, match="must match the file name"):
+        agents.load(with_agent)
+
+
+def test_skill_names_match_whole_words(with_agent: Path) -> None:
+    (a,) = agents.load(with_agent).values()
+    checks = agents.check_outcome(a, "alphabet betamax Needs attention", 0.01, with_agent)
+    assert checks["mentions alpha"] is False and checks["mentions beta"] is False
+
+
+def test_install_is_atomic(repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    build(repo)
+    dest = tmp_path / "agent-skills"
+    skills = [load_skill(repo / "skills" / "alpha")]
+    (p,) = install.plan(skills, repo, "codex", dest, True)
+    install.apply(p, "codex")
+    good = (dest / "alpha" / "SKILL.md").read_text()
+
+    def boom(*a: Any, **k: Any) -> Any:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(install.shutil, "copytree", boom)
+    (p,) = install.plan(skills, repo, "codex", dest, True)
+    with pytest.raises(OSError, match="disk full"):
+        install.apply(p, "codex")
+    assert (dest / "alpha" / "SKILL.md").read_text() == good  # previous copy intact
+
+
+def test_check_sources_before_any_change(repo: Path, tmp_path: Path) -> None:
+    planned = install.plan([load_skill(repo / "skills" / "alpha")], repo, "codex", tmp_path, True)
+    with pytest.raises(FileNotFoundError, match="sf build"):
+        install.check_sources(planned)
+
+
+def test_ci_comment_is_sticky_and_ablation_failures_surface() -> None:
+    ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
+    assert "--edit-last --create-if-none" in ci
+    nightly = (ROOT / ".github" / "workflows" / "nightly-evals.yml").read_text()
+    assert "|| true" not in nightly and "skills/*/evals" in nightly

@@ -24,6 +24,7 @@ Agents here only read; anything with outside effects needs a human checkpoint.
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 from dataclasses import dataclass, field
@@ -73,9 +74,13 @@ class RunRecord:
 
 
 def load(root: Path) -> dict[str, AgentDef]:
-    out = {}
+    out: dict[str, AgentDef] = {}
     for f in sorted((root / "managed").glob("*.yaml")):
         a = AgentDef.model_validate(YAML(typ="safe").load(f.read_text()))
+        if a.name != f.stem:
+            raise ValueError(f"{f.name}: name {a.name!r} must match the file name {f.stem!r}")
+        if a.name in out:
+            raise ValueError(f"duplicate managed agent name {a.name!r}")
         out[a.name] = a
     return out
 
@@ -108,7 +113,9 @@ def check_outcome(a: AgentDef, answer: str, cost: float | None, root: Path) -> d
     checks = {f"contains {s!r}": s in answer for s in a.outcome.contains}
     if a.outcome.contains_skill_names:
         for p in discover(root):
-            checks[f"mentions {p.name}"] = p.name in answer
+            # whole name only: "lc" must not count as mentioned because "lc-coach" is
+            pattern = rf"(?<![\w-]){re.escape(p.name)}(?![\w-])"
+            checks[f"mentions {p.name}"] = re.search(pattern, answer) is not None
     if a.outcome.max_cost_usd is not None:
         checks[f"cost <= ${a.outcome.max_cost_usd:g}"] = (
             cost is not None and cost <= a.outcome.max_cost_usd
@@ -123,18 +130,30 @@ def run(a: AgentDef, root: Path, timeout: int = 1800) -> tuple[RunRecord, Path]:
     if shutil.which("claude") is None:
         rec = RunRecord(a.name, started, a.model, None, None, False, error="claude CLI not found")
     else:
-        proc = subprocess.run(
-            command(a, root),
-            cwd=root,
-            capture_output=True,
-            text=True,
-            stdin=subprocess.DEVNULL,
-            timeout=timeout,
-        )
         try:
+            proc = subprocess.run(
+                command(a, root),
+                cwd=root,
+                capture_output=True,
+                text=True,
+                stdin=subprocess.DEVNULL,
+                timeout=timeout,
+            )
             result = json.loads(proc.stdout)
+        except subprocess.TimeoutExpired:
+            result = {
+                "is_error": True,
+                "subtype": "timeout",
+                "result": f"timed out after {timeout}s",
+            }
+        except OSError as e:
+            result = {"is_error": True, "subtype": "oserror", "result": str(e)}
         except ValueError:
-            result = {"is_error": True, "result": proc.stderr.strip()[:500]}
+            result = {
+                "is_error": True,
+                "subtype": "bad_output",
+                "result": proc.stderr.strip()[:500],
+            }
         answer = str(result.get("result") or "")
         cost = result.get("total_cost_usd")
         (out_dir / f"{started}.md").write_text(answer + "\n")

@@ -409,7 +409,8 @@ def eval_cmd(
             console.print(f"[bold]{name}[/]: running…")
             summary, out_dir = run_eval(skill, root / "runs", opts)
         except (SkillError, EvalError, FileNotFoundError) as e:
-            err.print(f"[red]error:[/] {name}: {e}")
+            err.print(f"[red]error:[/] {name}: {escape(str(e))}")
+            md_rows.append(f"| `{name}` | error | - | - | - | - | - |")  # never hide a failure
             failed = True
             continue
         lo, hi = summary.interval
@@ -1074,11 +1075,15 @@ def install_cmd(
     from skill_factory import install
 
     root = _root()
-    chosen = (
-        [load_skill(root / "skills" / n) for n in skills]
-        if skills
-        else [load_skill(p) for p in discover(root)]
-    )
+    try:
+        chosen = (
+            [load_skill(root / "skills" / n) for n in skills]
+            if skills
+            else [load_skill(p) for p in discover(root)]
+        )
+    except SkillError as e:
+        err.print(f"[red]error:[/] {escape(e.skill)}: {escape('; '.join(e.problems))}")
+        raise typer.Exit(2) from e
     target = dest or install.target_dir(agent, scope, Path.home(), Path.cwd())
     planned = install.plan(chosen, root, agent, target, all_skills)
     table = Table("skill", "action", "destination")
@@ -1089,6 +1094,7 @@ def install_cmd(
         return
     target.mkdir(parents=True, exist_ok=True)
     try:
+        install.check_sources(planned)  # all-or-nothing: verify every source before changing any
         for p in planned:
             install.apply(p, agent)
     except FileNotFoundError as e:
@@ -1132,7 +1138,14 @@ def agent_run(
     from skill_factory import agents
 
     root = _root()
-    defs = agents.load(root)
+    try:
+        defs = agents.load(root)
+    except ValueError as e:
+        err.print(f"[red]error:[/] {escape(str(e))}")
+        raise typer.Exit(2) from e
+    if not all_agents and name is None:
+        err.print("[red]error:[/] name an agent or pass --all")
+        raise typer.Exit(2)
     chosen = list(defs.values()) if all_agents else ([defs[name]] if name in defs else [])
     if not chosen:
         err.print(f"[red]error:[/] unknown agent {name!r}; see `sf agent list`")
@@ -1144,13 +1157,14 @@ def agent_run(
         rec, path = agents.run(a, root)
         cost = "-" if rec.cost_usd is None else f"${rec.cost_usd:.4f}"
         status = "[green]pass[/]" if rec.passed else "[red]fail[/]"
-        console.print(f"  {status} · {cost} · {rec.turns} turns · {path.relative_to(root)}")
+        turns = "-" if rec.turns is None else rec.turns
+        console.print(f"  {status} · {cost} · {turns} turns · {path.relative_to(root)}")
         for label, ok in rec.checks.items():
             if not ok:
                 console.print(f"  [yellow]failed check:[/] {label}")
         if rec.error:
             console.print(f"  [red]error:[/] {rec.error}")
-        lines.append(f"| `{a.name}` | {'pass' if rec.passed else 'fail'} | {cost} | {rec.turns} |")
+        lines.append(f"| `{a.name}` | {'pass' if rec.passed else 'fail'} | {cost} | {turns} |")
         failed |= not rec.passed
     if summary_md:
         with summary_md.open("a") as f:

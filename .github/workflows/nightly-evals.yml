@@ -33,9 +33,15 @@ jobs:
         run: uv run sf eval --all --runs 3 -j 8 --budget 5 --summary-md "$GITHUB_STEP_SUMMARY"
         continue-on-error: true  # a below-min skill should still produce the report
       - name: weekly ablation (Mondays)
+        continue-on-error: true  # fails visibly (red step) but the report still uploads
         run: |
           if [ "$(date -u +%u)" = "1" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            for s in $(ls skills); do uv run sf ablate "$s" --runs 2 -j 8 || true; done
+            failed=""
+            for d in skills/*/evals; do          # only skills that have evals
+              s="$(basename "$(dirname "$d")")"
+              uv run sf ablate "$s" --runs 2 -j 8 || failed="$failed $s"
+            done
+            if [ -n "$failed" ]; then echo "::error::ablation failed for:$failed"; exit 1; fi
           fi
       - name: report
         if: always()

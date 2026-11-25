@@ -346,3 +346,23 @@ def test_search_reports_a_bad_repo(repo, monkeypatch, tmp_path) -> None:  # type
     monkeypatch.setenv("SF_HOME", str(home))
     monkeypatch.chdir(tmp_path)
     assert runner.invoke(app, ["search", "alpha"]).exit_code == 2
+
+
+def test_eval_summary_lists_errored_skills_and_cli_messages(repo, monkeypatch, tmp_path) -> None:  # type: ignore[no-untyped-def]
+    from skill_factory.eval import runner as eval_runner
+    from skill_factory.eval.runner import EvalError
+
+    monkeypatch.chdir(repo)
+    (repo / "skills" / "alpha" / "evals" / "c").mkdir(parents=True)
+    (repo / "skills" / "alpha" / "evals" / "c" / "case.yaml").write_text("name: c\n")
+
+    def broken(*a, **k):  # type: ignore[no-untyped-def]
+        raise EvalError("broken case.yaml")
+
+    monkeypatch.setattr(eval_runner, "run_eval", broken)
+    md = tmp_path / "s.md"
+    out = runner.invoke(app, ["eval", "alpha", "--summary-md", str(md)])
+    assert out.exit_code == 1 and "| `alpha` | error |" in md.read_text()
+    assert "name an agent or pass --all" in runner.invoke(app, ["agent", "run"]).output
+    bad = runner.invoke(app, ["install", "--agent", "codex", "nope"])
+    assert bad.exit_code == 2 and "Traceback" not in bad.output
