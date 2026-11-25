@@ -1,0 +1,15 @@
+{
+  "background_tasks": [],
+  "cwd": "<TMP>/work",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "Stop",
+  "last_assistant_message": "The command was blocked, so I didn't get any listing output. The Bash tool refused `ls /nonexistent-sf-probe-outside` because that path is outside this session's allowed working directories:\n\n- `<TMP>/work`\n- `/var/folders/53/fcvzq9sn33sgpbzss_y4_6zh0000gn/T/sf-probe.CpeCUP/work`\n\nYou asked me to run only that command with Bash, so I didn't try other paths or tools to get around the block. The path also doesn't exist, so the result would have been an error either way.",
+  "permission_mode": "default",
+  "prompt_id": "<UUID1>",
+  "session_crons": [],
+  "session_id": "<UUID0>",
+  "stop_hook_active": false,
+  "transcript_path": "<HOME>/.claude/projects/<TMP_SLUG>-work/<UUID0>.jsonl"
+}

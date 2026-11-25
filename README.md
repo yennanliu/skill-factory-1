@@ -12,9 +12,29 @@ A scaled-down, Uber-style platform for authoring, evaluating, measuring and impr
 - Implementation plan (English): [docs/IMPLEMENTATION_PLAN.en.md](docs/IMPLEMENTATION_PLAN.en.md)
 - 實作計畫（繁體中文）：[docs/IMPLEMENTATION_PLAN.zh-TW.md](docs/IMPLEMENTATION_PLAN.zh-TW.md)
 
+## Quickstart / 快速開始
+Requires [uv](https://docs.astral.sh/uv/) and Claude Code. 需要 uv 與 Claude Code。
+
+```bash
+uv sync                      # create .venv and install deps from uv.lock
+uv run sf --help
+uv run sf version            # sf, installed Claude Code, pinned contract version
+uv run pytest                # unit + Claude Code contract tests
+uv run ruff check . && uv run ruff format --check . && uv run mypy
+scripts/probe_claude.sh      # re-capture Claude Code payloads after upgrading the CLI (~$0.01)
+```
+
+## Layout / 結構
+| Path | What |
+|---|---|
+| `src/skill_factory/` | the `sf` CLI |
+| `skills/` | skill sources (one dir per skill) |
+| `scripts/probe_claude.sh` | records real hook / stream-json payloads into `tests/fixtures/claude/<version>/` |
+| `docs/CLAUDE_CODE_CONTRACT.md` | Claude Code facts we depend on, confirmed by the probe |
+
 ## Status / 狀態
-Phase 0 — design only. See the roadmap in the design doc (section 12).
-階段 0 — 目前只有設計。路線圖見設計文件第 12 節。
+Phase 0 (bootstrap & probe) — see [the implementation plan](docs/IMPLEMENTATION_PLAN.en.md).
+階段 0（起步與探測）— 見[實作計畫](docs/IMPLEMENTATION_PLAN.zh-TW.md)。
 
 ## References / 參考
 - Uber Engineering — [How Uber Evals 1 Million Agent Skill Invocations a Month](https://www.uber.com/us/en/blog/optimizing-ubers-agent-skills/) (2026-11-23)

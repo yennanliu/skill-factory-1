@@ -1,0 +1,7 @@
+{
+  "cwd": "<TMP>/work",
+  "hook_event_name": "SessionStart",
+  "session_id": "<UUID0>",
+  "source": "startup",
+  "transcript_path": "<HOME>/.claude/projects/<TMP_SLUG>-work/<UUID0>.jsonl"
+}
