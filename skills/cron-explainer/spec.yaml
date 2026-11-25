@@ -1,0 +1,33 @@
+name: cron-explainer
+version: 0.1.0
+tier: experimental
+owner: yennanliu
+goal: >-
+  Explain a standard 5-field cron expression field by field and list its next run times from a
+  given starting time, computed carefully rather than guessed.
+triggers:
+  - "what does this cron expression mean?"
+  - "when will '<cron>' run next?"
+  - "explain this crontab line"
+outputs:
+  - "a table with one row per field: minute, hour, day of month, month, day of week, with the value and its meaning"
+  - "a one-sentence plain-English summary"
+  - "the next 3 run times after the given 'now', as 'YYYY-MM-DD HH:MM' in a numbered list, in the stated timezone (UTC if none)"
+  - "when both day-of-month and day-of-week are restricted, say that standard cron runs when EITHER matches (OR), and apply it"
+  - "if no 'now' is given, ask for it instead of assuming the current date"
+tools:
+  required: [Read]
+  forbidden: [Write, Edit, Bash]
+  scripts: []
+targets:
+  agents: [claude-code, codex, opencode, gemini-cli]
+  models: [claude-sonnet-5-5]
+budget:
+  max_body_lines: 150
+  target_cost_usd: 0.03
+evals:
+  min_pass_rate: 0.7
+  max_pass_rate: 0.95
+  runs: 3
+  allow_tools: [Bash, Write, Edit]  # eval-only: so the "never commits/edits" checks can fail
+side_effects: none

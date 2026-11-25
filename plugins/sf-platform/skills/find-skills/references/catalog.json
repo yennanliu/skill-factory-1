@@ -2,6 +2,48 @@
   "marketplace": "skill-factory",
   "skills": [
     {
+      "skill": "changelog-writer",
+      "plugin": "sf-experimental",
+      "tier": "experimental",
+      "version": "0.1.0",
+      "goal": "Turn a list of commits (git log output) into a release section in Keep a Changelog format, written for users of the project rather than its developers.",
+      "triggers": [
+        "write the changelog for these commits",
+        "draft release notes from this git log",
+        "update CHANGELOG.md for version X"
+      ],
+      "description": "Turns git log output into a user-facing Keep a Changelog release section (Added/Changed/Fixed…, breaking changes first). Use when the user says \"write the changelog for these commits\", \"draft release notes from this git log\", or \"update CHANGELOG.md for version X\".",
+      "install": "/plugin install sf-experimental@skill-factory"
+    },
+    {
+      "skill": "commit-message-writer",
+      "plugin": "sf-experimental",
+      "tier": "experimental",
+      "version": "0.1.0",
+      "goal": "Write a git commit message for a diff, following Conventional Commits and the house rules, so history is greppable and changelogs can be generated from it.",
+      "triggers": [
+        "write a commit message for this diff",
+        "what should the commit message be?",
+        "commit this change with a good message"
+      ],
+      "description": "Writes a Conventional Commits message for a diff: type(scope): subject header, a body that explains why, and a BREAKING CHANGE footer when needed. Use when the user asks \"write a commit message for this diff\", \"what should the commit message be?\" or \"commit this change with a good message\".",
+      "install": "/plugin install sf-experimental@skill-factory"
+    },
+    {
+      "skill": "cron-explainer",
+      "plugin": "sf-experimental",
+      "tier": "experimental",
+      "version": "0.1.0",
+      "goal": "Explain a standard 5-field cron expression field by field and list its next run times from a given starting time, computed carefully rather than guessed.",
+      "triggers": [
+        "what does this cron expression mean?",
+        "when will '<cron>' run next?",
+        "explain this crontab line"
+      ],
+      "description": "Explains a standard 5-field cron expression field by field, summarises it in plain English, and works out its next 3 run times from a given \"now\". Use when asked \"what does this cron expression mean?\", \"when will '<cron>' run next?\", or \"explain this crontab line\".",
+      "install": "/plugin install sf-experimental@skill-factory"
+    },
+    {
       "skill": "fastapi-master",
       "plugin": "sf-domain-python-web",
       "tier": "domain",

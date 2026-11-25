@@ -1,0 +1,34 @@
+name: changelog-writer
+version: 0.1.0
+tier: experimental
+owner: yennanliu
+goal: >-
+  Turn a list of commits (git log output) into a release section in Keep a Changelog format,
+  written for users of the project rather than its developers.
+triggers:
+  - "write the changelog for these commits"
+  - "draft release notes from this git log"
+  - "update CHANGELOG.md for version X"
+outputs:
+  - "one markdown section: '## [<version>] - <YYYY-MM-DD>' using the version and date given (ask if missing)"
+  - "subsections in this order and only when non-empty: ### Added, ### Changed, ### Deprecated, ### Removed, ### Fixed, ### Security"
+  - "mapping: feat -> Added; fix -> Fixed (security fixes such as CVE, XSS, injection -> Security); perf/refactor that changes behaviour -> Changed; revert -> Removed or Fixed"
+  - "chore, ci, test, docs-only and merge commits are left out"
+  - "breaking changes (! or BREAKING CHANGE) are listed first under Changed, prefixed with '**Breaking:**'"
+  - "each entry is one user-facing sentence ending with the PR or commit reference in parentheses, e.g. (#42) or (abc1234)"
+tools:
+  required: [Read]
+  forbidden: [Write, Edit, Bash]
+  scripts: []
+targets:
+  agents: [claude-code, codex, opencode, gemini-cli]
+  models: [claude-sonnet-5-5]
+budget:
+  max_body_lines: 150
+  target_cost_usd: 0.03
+evals:
+  min_pass_rate: 0.7
+  max_pass_rate: 0.95
+  runs: 3
+  allow_tools: [Bash, Write, Edit]  # eval-only: so the "never commits/edits" checks can fail
+side_effects: none
