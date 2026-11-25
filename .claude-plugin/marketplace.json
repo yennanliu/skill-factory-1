@@ -1,0 +1,26 @@
+{
+  "name": "skill-factory",
+  "owner": {
+    "name": "yennanliu"
+  },
+  "metadata": {
+    "description": "Spec-first, evaluated and measured agent skills."
+  },
+  "plugins": [
+    {
+      "name": "sf-core",
+      "source": "./plugins/sf-core",
+      "description": "Widely useful, tested skills reviewed by the platform owner."
+    },
+    {
+      "name": "sf-domain-leetcode",
+      "source": "./plugins/sf-domain-leetcode",
+      "description": "LeetCode practice skills - filing solutions and interview coaching."
+    },
+    {
+      "name": "sf-domain-python-web",
+      "source": "./plugins/sf-domain-python-web",
+      "description": "Python web development skills (FastAPI)."
+    }
+  ]
+}

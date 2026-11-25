@@ -1,0 +1,26 @@
+name: python-code-reviewer
+version: 1.0.0
+tier: core
+owner: yennanliu
+goal: >-
+  Review Python code for quality, bugs, security and best practices, in a fixed report format.
+triggers:
+  - "review this Python code"
+  - "review this function / module"
+  - "what's wrong with this Python file?"
+outputs:
+  - strengths, issues & concerns (with severity), code examples, overall rating, summary
+tools:
+  required: [Read, Grep, Glob]
+  forbidden: [Write, Edit]
+  scripts: []
+targets:
+  agents: [claude-code]
+  models: [claude-sonnet-5-5]
+budget:
+  max_body_lines: 500
+evals:
+  min_pass_rate: 0.7
+  max_pass_rate: 0.95
+  runs: 5
+side_effects: none

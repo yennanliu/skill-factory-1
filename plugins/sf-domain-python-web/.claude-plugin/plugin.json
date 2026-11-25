@@ -1,0 +1,8 @@
+{
+  "name": "sf-domain-python-web",
+  "version": "0.1.0",
+  "description": "Python web development skills (FastAPI).",
+  "author": {
+    "name": "yennanliu"
+  }
+}

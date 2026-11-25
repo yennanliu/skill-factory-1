@@ -1,0 +1,28 @@
+name: fastapi-master
+version: 1.0.0
+tier: domain
+domain: python-web
+owner: yennanliu
+goal: >-
+  Guide building FastAPI applications: project layout, settings, schemas, dependency injection,
+  auth, database integration, testing and production practices.
+triggers:
+  - "build a FastAPI app / endpoint"
+  - "add auth to my FastAPI project"
+  - "how should I structure this FastAPI service?"
+outputs:
+  - code following the recommended layout and patterns
+tools:
+  required: [Read, Write, Edit, Grep, Glob, Bash, LSP]
+  forbidden: []
+  scripts: []
+targets:
+  agents: [claude-code]
+  models: [claude-sonnet-5-5]
+budget:
+  max_body_lines: 500
+evals:
+  min_pass_rate: 0.7
+  max_pass_rate: 0.95
+  runs: 5
+side_effects: local

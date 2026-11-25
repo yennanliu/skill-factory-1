@@ -1,0 +1,22 @@
+# Marketplace identity and plugin versions. plugins/ and .claude-plugin/ are generated from this
+# file plus skills/*/spec.yaml by `sf build`. Bump versions with `sf release <skill> --bump <part>`.
+name: skill-factory
+owner: yennanliu
+repository: yennanliu/skill-factory-1  # <owner>/<repo> used in install instructions
+description: Spec-first, evaluated and measured agent skills.
+plugins:
+  sf-platform:
+    version: 0.1.0
+    description: Always-on platform skills and telemetry hooks.
+  sf-core:
+    version: 0.1.0
+    description: Widely useful, tested skills reviewed by the platform owner.
+  sf-experimental:
+    version: 0.1.0
+    description: New skills that have not passed evals yet.
+  sf-domain-leetcode:
+    version: 0.1.0
+    description: LeetCode practice skills - filing solutions and interview coaching.
+  sf-domain-python-web:
+    version: 0.1.0
+    description: Python web development skills (FastAPI).
