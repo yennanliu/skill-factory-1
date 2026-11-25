@@ -1,0 +1,19 @@
+# A managed agent: runs headless every week (see .github/workflows/managed-agents.yml).
+# Outcome metric: cost per digest, with a check that every repo skill is covered.
+name: weekly-skill-digest
+description: Weekly markdown digest of the marketplace, flagging skills with thin eval coverage.
+plugins: [sf-platform]
+prompt: |
+  You are in the skill-factory repository. Write a short markdown digest of the skills in
+  skills/*/: group them by the `tier` field of each spec.yaml, one line per skill with its name
+  (exactly as the directory is named) and its goal. Then add a "Needs attention" list of skills
+  whose evals/ folder has fewer than 3 case directories (ignore folders starting with "_").
+  Only read files; do not modify anything. Output only the digest.
+model: claude-haiku-5-5
+max_turns: 25
+budget_usd: 0.5
+allowed_tools: [Read, Glob, Grep, Skill]
+outcome:
+  contains: ["Needs attention"]
+  contains_skill_names: true
+  max_cost_usd: 0.25

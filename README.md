@@ -34,6 +34,8 @@ uv run sf judge calibrate lc-coach   # LLM judge vs your labels in evals/_calibr
 uv run sf papercuts list     # reports filed by the log-papercut skill; group / show / promote / close
 uv run sf search "review python code"   # find an existing skill (+ install command)
 uv run sf analyze --since 7d # costliest sessions + wasteful patterns, with a suggested fix each
+uv run sf install --agent codex      # also: opencode, gemini; --scope project, --dry-run
+uv run sf agent run weekly-skill-digest   # a managed agent: headless run + outcome checks
 uvx pre-commit install       # lint changed skills + check generated files on every commit
 scripts/probe_otel.sh        # re-capture OTel payloads after upgrading the CLI (~$0.01)
 uv run pytest                # unit + Claude Code contract tests
@@ -120,6 +122,27 @@ reproduce the bug and confirm it fails, fix the **spec**, `sf compile --apply`, 
 `sf papercuts close <id>`. `sf analyze` covers the waste *between* skills: expensive models on read-only work,
 large tool results, cache expiry after breaks, heavy preloaded context, polling, search thrash and retry loops.
 
+## Other agents / 其他 agent
+`sf install --agent codex|opencode|gemini [--scope user|project]` copies built skills into
+`~/.codex/skills`, `~/.config/opencode/skills` or `~/.gemini/skills` (project scope: `.codex/skills`,
+`.opencode/skills`, `.gemini/skills`). It strips Claude-only frontmatter (`allowed-tools`) and installs only skills
+whose spec lists that agent in `targets.agents` (`--all-skills` overrides). It never replaces a skill it didn't
+install. Telemetry hooks are Claude Code only.
+
+## Managed agents / 託管 agent
+`managed/<name>.yaml` defines a skill-backed job that runs headless on a schedule. Each one has a prompt, plugins,
+model, budget and outcome checks (required strings, every repo skill mentioned, a cost ceiling).
+`sf agent run` records the cost, turns and outcome under `runs/agents/<name>/`. Example: `weekly-skill-digest`.
+
+## CI
+- `ci.yml` (every PR):
+  - checks: `uv sync --locked`, ruff, mypy, pytest, `sf spec validate`, `sf build --check`, `sf lint --format github`
+    (inline annotations), `sf compile --check`
+  - evals: `sf eval --changed` runs the suites of changed skills and posts a summary comment. It needs the
+    `ANTHROPIC_API_KEY` secret and is skipped without it.
+- `nightly-evals.yml`: the full suite daily, ablation on Mondays, and the HTML report as an artifact.
+- `managed-agents.yml`: `sf agent run --all` weekly.
+
 ## Layout / 結構
 | Path | What |
 |---|---|
@@ -134,8 +157,8 @@ large tool results, cache expiry after breaks, heavy preloaded context, polling,
 | `docs/CLAUDE_CODE_CONTRACT.md` | Claude Code facts we depend on, confirmed by the probe |
 
 ## Status / 狀態
-Phase 8 (papercuts, find-skills, session analyzer) — see [the implementation plan](docs/IMPLEMENTATION_PLAN.en.md).
-階段 8（papercut、find-skills、session analyzer）— 見[實作計畫](docs/IMPLEMENTATION_PLAN.zh-TW.md)。
+All 10 phases (0-9) of the implementation plan are implemented — see [the implementation plan](docs/IMPLEMENTATION_PLAN.en.md).
+實作計畫的 10 個階段（0–9）皆已完成— 見[實作計畫](docs/IMPLEMENTATION_PLAN.zh-TW.md)。
 
 ## References / 參考
 - Uber Engineering — [How Uber Evals 1 Million Agent Skill Invocations a Month](https://www.uber.com/us/en/blog/optimizing-ubers-agent-skills/) (2026-11-23)

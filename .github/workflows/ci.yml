@@ -1,0 +1,86 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write  # eval summary comment
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4  # shallow is enough: the checks job lints every skill
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - name: ruff
+        run: uv run ruff check . && uv run ruff format --check .
+      - name: mypy
+        run: uv run mypy
+      - name: pytest
+        run: uv run pytest -n auto
+      - name: specs
+        run: uv run sf spec validate
+      - name: generated plugins are up to date
+        run: uv run sf build --check
+      - name: lint skills
+        run: uv run sf lint --format github
+      - name: compiled skills match their specs
+        run: uv run sf compile --check
+
+  evals:
+    # Runs the eval suites of skills changed in this PR. Needs the ANTHROPIC_API_KEY secret;
+    # skipped (not failed) on forks and when the secret isn't configured.
+    needs: checks
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    continue-on-error: true  # agent runs are noisy; the PR comment carries the result
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: check for credentials
+        id: creds
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::notice::ANTHROPIC_API_KEY not set; skipping evals"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: astral-sh/setup-uv@v6
+        if: steps.creds.outputs.skip != 'true'
+      - uses: actions/setup-node@v4
+        if: steps.creds.outputs.skip != 'true'
+        with:
+          node-version: 22
+      - name: install Claude Code (pinned) + sandbox deps
+        if: steps.creds.outputs.skip != 'true'
+        run: |
+          npm install -g "@anthropic-ai/claude-code@$(cat .claude-version)"
+          sudo apt-get update -q && sudo apt-get install -yq bubblewrap socat
+      - name: sf eval (changed skills)
+        if: steps.creds.outputs.skip != 'true'
+        run: |
+          uv sync --locked
+          uv run sf build
+          uv run sf eval --changed --base "origin/${{ github.base_ref }}" --runs 2 -j 4 \
+            --budget 3 --summary-md eval-summary.md
+      - name: comment on the PR
+        if: always() && steps.creds.outputs.skip != 'true' && hashFiles('eval-summary.md') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat eval-summary.md >> "$GITHUB_STEP_SUMMARY"
+          # one sticky comment, updated on every push instead of a new one each time
+          gh pr comment "${{ github.event.pull_request.number }}" --body-file eval-summary.md \
+            --edit-last --create-if-none

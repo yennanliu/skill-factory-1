@@ -1,0 +1,30 @@
+name: managed-agents
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"  # Mondays 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install -g "@anthropic-ai/claude-code@$(cat .claude-version)"
+      - run: uv sync --locked && uv run sf build
+      - name: run managed agents
+        run: uv run sf agent run --all --summary-md "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: managed-agent-runs
+          path: runs/agents/

@@ -239,6 +239,40 @@ def test_lint_changed_edge_cases(repo, monkeypatch) -> None:  # type: ignore[no-
     assert runner.invoke(app, ["lint", "alpha", "--changed"]).exit_code == 2
 
 
+def test_eval_changed_summary_install_agent_cli(repo, monkeypatch, tmp_path) -> None:  # type: ignore[no-untyped-def]
+    import subprocess
+
+    from skill_factory.eval import runner as eval_runner
+    from tests.test_ablation import summary
+
+    monkeypatch.chdir(repo)
+    for args in (
+        ["init", "-q", "-b", "main"],
+        ["add", "-A"],
+        ["-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-qm", "i"],
+    ):
+        subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True)
+    md_out = tmp_path / "summary.md"
+    none = runner.invoke(app, ["eval", "--changed", "--summary-md", str(md_out)])
+    assert none.exit_code == 0 and "No changed skills" in md_out.read_text()
+
+    (repo / "skills" / "alpha" / "evals" / "c").mkdir(parents=True)
+    (repo / "skills" / "alpha" / "evals" / "c" / "case.yaml").write_text("name: c\n")
+    monkeypatch.setattr(
+        eval_runner, "run_eval", lambda s, r, o, **k: (summary([True] * 4 + [False], 0.1), r)
+    )
+    ran = runner.invoke(app, ["eval", "--changed", "--summary-md", str(md_out)])
+    assert ran.exit_code == 0, ran.output
+    assert "| `alpha` | ok | 80% |" in md_out.read_text()
+
+    assert runner.invoke(app, ["build"]).exit_code == 0
+    dest = tmp_path / "codex"
+    inst = runner.invoke(app, ["install", "--agent", "codex", "--dest", str(dest), "--all-skills"])
+    assert inst.exit_code == 0, inst.output
+    assert (dest / "alpha" / "SKILL.md").is_file()
+    assert runner.invoke(app, ["agent", "run", "nope"]).exit_code == 2
+
+
 def test_untrusted_text_is_not_rich_markup(repo, monkeypatch) -> None:  # type: ignore[no-untyped-def]
     monkeypatch.chdir(repo)
     (repo / "skills" / "alpha" / "spec.yaml").write_text("name: [/oops]\n")
@@ -312,3 +346,23 @@ def test_search_reports_a_bad_repo(repo, monkeypatch, tmp_path) -> None:  # type
     monkeypatch.setenv("SF_HOME", str(home))
     monkeypatch.chdir(tmp_path)
     assert runner.invoke(app, ["search", "alpha"]).exit_code == 2
+
+
+def test_eval_summary_lists_errored_skills_and_cli_messages(repo, monkeypatch, tmp_path) -> None:  # type: ignore[no-untyped-def]
+    from skill_factory.eval import runner as eval_runner
+    from skill_factory.eval.runner import EvalError
+
+    monkeypatch.chdir(repo)
+    (repo / "skills" / "alpha" / "evals" / "c").mkdir(parents=True)
+    (repo / "skills" / "alpha" / "evals" / "c" / "case.yaml").write_text("name: c\n")
+
+    def broken(*a, **k):  # type: ignore[no-untyped-def]
+        raise EvalError("broken case.yaml")
+
+    monkeypatch.setattr(eval_runner, "run_eval", broken)
+    md = tmp_path / "s.md"
+    out = runner.invoke(app, ["eval", "alpha", "--summary-md", str(md)])
+    assert out.exit_code == 1 and "| `alpha` | error |" in md.read_text()
+    assert "name an agent or pass --all" in runner.invoke(app, ["agent", "run"]).output
+    bad = runner.invoke(app, ["install", "--agent", "codex", "nope"])
+    assert bad.exit_code == 2 and "Traceback" not in bad.output
