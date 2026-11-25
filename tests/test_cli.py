@@ -55,6 +55,41 @@ def test_lint_cli_exit_codes(repo, monkeypatch) -> None:  # type: ignore[no-unty
     assert runner.invoke(app, ["lint", "nope"]).exit_code == 2
 
 
+def test_eval_cli(repo, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    from skill_factory.eval import runner as eval_runner
+    from skill_factory.eval.result import parse
+    from skill_factory.models.spec import EvalPolicy
+
+    monkeypatch.chdir(repo)
+    assert runner.invoke(app, ["eval"]).exit_code == 2  # nothing selected
+
+    def fake_run_eval(skill, runs_dir, opts):  # type: ignore[no-untyped-def]
+        raw = {
+            "schemaVersion": 1,
+            "costUsd": 0.5,
+            "cases": [
+                {
+                    "name": "c",
+                    "arms": {
+                        "with": [{"passed": True, "score": 1}] * 4
+                        + [{"passed": False, "score": 0}],
+                        "without": [{"passed": False, "score": 0}] * 5,
+                    },
+                }
+            ],
+        }
+        out = runs_dir / skill.name / "t"
+        out.mkdir(parents=True)
+        return parse(
+            raw, skill=skill.name, version="1.0.0", model=opts.model, policy=EvalPolicy()
+        ), out
+
+    monkeypatch.setattr(eval_runner, "run_eval", fake_run_eval)
+    ok = runner.invoke(app, ["eval", "alpha", "--runs", "5"])
+    assert ok.exit_code == 0, ok.output
+    assert "c: 4/5 (80%)" in ok.output and "baseline 0%" in ok.output
+
+
 def test_release_reports_rebuild_failure(repo, monkeypatch) -> None:  # type: ignore[no-untyped-def]
     monkeypatch.chdir(repo)
     import skill_factory.cli as cli
@@ -92,3 +127,9 @@ def test_untrusted_text_is_not_rich_markup(repo, monkeypatch) -> None:  # type: 
     (repo / "skills" / "alpha" / "spec.yaml").write_text("name: [/oops]\n")
     out = runner.invoke(app, ["spec", "validate"])
     assert out.exit_code == 1 and "MarkupError" not in repr(out.exception)
+
+
+def test_eval_rejects_bad_jobs_and_runs(repo, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.chdir(repo)
+    assert runner.invoke(app, ["eval", "alpha", "-j", "16"]).exit_code == 2
+    assert runner.invoke(app, ["eval", "alpha", "--runs", "0"]).exit_code == 2

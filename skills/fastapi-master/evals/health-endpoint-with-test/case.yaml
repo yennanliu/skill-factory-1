@@ -1,0 +1,29 @@
+schema_version: "1.1"
+name: health-endpoint-with-test
+description: Build a minimal FastAPI service with a health endpoint and a test.
+tags: [golden]
+execution:
+  prompt: >-
+    Create a minimal FastAPI service in this empty directory with a GET /health endpoint that
+    returns {"status": "ok"}, plus a pytest test for it. Don't install anything.
+  max_turns: 25
+  timeout_seconds: 600
+  allowed_tools: [Read, Glob, Grep, Skill]
+graders:
+  - name: app-entrypoint
+    type: file_exists
+    path: "**/main.py"
+  - name: has-test
+    type: file_exists
+    path: "**/test_*.py"
+  - name: health-route
+    type: regex
+    target: trace
+    pattern: '@(app|router)\.get\(\\?["'']/health'
+  - name: uses-testclient
+    type: regex
+    target: trace
+    pattern: 'TestClient'
+  - name: skill-fired
+    type: tool_used
+    tool: Skill

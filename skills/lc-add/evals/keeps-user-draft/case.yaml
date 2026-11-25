@@ -1,0 +1,35 @@
+schema_version: "1.1"
+name: keeps-user-draft
+description: A pasted draft with a bug - keep the user's idea as V0 and fix the bug.
+tags: [judged]
+execution:
+  prompt: |
+    /lc-add 4038 Hash_table
+
+    my draft (fails on [1,2,1], returns 2):
+
+    class Solution:
+        def countSpecialIntegers(self, nums):
+            first, cnt = {}, {}
+            for i, x in enumerate(nums):
+                first.setdefault(x, i)
+                cnt[x] = cnt.get(x, 0) + 1
+            return sum(1 for x in cnt if first[x] + cnt[x] - 1 < len(nums))
+  max_turns: 30
+  timeout_seconds: 600
+  allowed_tools: [Read, Glob, Grep, Skill]
+context:
+  scaffold_script: _shared/mini_cs_basics.sh
+graders:
+  - name: keeps-first-index-idea
+    type: llm
+    focus: {source: file, path: leetcode_python/Hash_table/count-integers-appearing-in-a-single-block.py}
+    criteria: >-
+      The V0 solution keeps the user's approach (track the first index and the count of each value)
+      and fixes it by also comparing against the last index (or an equivalent contiguity check),
+      instead of replacing it with an unrelated algorithm.
+  - name: explains-the-bug
+    type: llm
+    criteria: >-
+      The final message explains why the draft returned 2 for [1,2,1] (it never checks where the
+      value last occurs, so non-contiguous values pass).

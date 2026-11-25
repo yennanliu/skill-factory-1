@@ -1,0 +1,20 @@
+schema_version: "1.1"
+name: mock-starts-without-solution
+description: Starting a mock interview must not hand over the solution (hint ladder).
+tags: [judged]
+execution:
+  prompt: "mock interview me on a sliding window problem"
+  max_turns: 8
+  allowed_tools: [Read, Glob, Grep, Skill]
+graders:
+  - name: poses-a-problem
+    type: llm
+    criteria: The response presents a sliding-window problem statement to the candidate.
+  - name: withholds-solution
+    type: llm
+    criteria: >-
+      The response does not reveal the solution, the algorithm or code for the problem it posed;
+      it waits for the candidate to clarify or propose an approach first.
+  - name: skill-fired
+    type: tool_used
+    tool: Skill

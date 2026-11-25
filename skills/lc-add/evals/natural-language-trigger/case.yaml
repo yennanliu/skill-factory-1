@@ -1,0 +1,23 @@
+schema_version: "1.1"
+name: natural-language-trigger
+description: The skill should be picked from a natural request and find the problem via ws.txt.
+tags: [trajectory]
+execution:
+  prompt: "I solved Q1 of weekly contest 517 - can you file it in the repo the usual way?"
+  max_turns: 30
+  timeout_seconds: 600
+  allowed_tools: [Read, Glob, Grep, Skill]
+context:
+  scaffold_script: _shared/mini_cs_basics.sh
+graders:
+  - name: skill-fired
+    type: tool_used
+    tool: Skill
+  - name: file-created
+    type: file_exists
+    path: leetcode_python/Hash_table/count-integers-appearing-in-a-single-block.py
+  - name: difficulty-assumption-reported
+    type: llm
+    criteria: >-
+      The final message reports what was assumed, including that the difficulty (Easy) was
+      inferred from the problem's position in the contest rather than read from LeetCode.

@@ -81,7 +81,25 @@ enough (no Docker collector needed).
 Consequence: **cost per skill = `sum(api_request.cost_usd) GROUP BY skill.name`**; calls and trigger come from
 `skill_activated`. Hook events add tool-error attribution and work without the OTel env.
 
-## 6. Still unverified
+## 6. `claude plugin eval` (the harness `sf eval` wraps)
+
+Docs: <https://code.claude.com/docs/en/plugin-evals.md>. Real output fixture:
+`tests/fixtures/claude-eval/<version>/lc-coach.json`.
+
+| Fact | Value |
+|---|---|
+| Case | a dir with `case.yaml` (`schema_version: "1.1"`, `name`, `execution.{prompt,max_turns,timeout_seconds,allowed_tools}`, `context.scaffold_script`, `graders`) or `prompt.md` + `graders/*.md` |
+| Graders | `regex` (`target`: `last_message`, `trace`, `files`, `{source: file, path}`), `tool_used` (`min`/`max`, `input_match`), `tool_order`, `file_exists`, `llm` (2 of 3 judge votes), `baseline`. No code graders |
+| Fixtures | only via `context.scaffold_script`, which runs only with `--scaffold`; paths must stay **inside the case dir** (`..` is rejected), hence sf copies `evals/_shared/` into each case |
+| Tools | read-only tools by default; `Bash`/`Write`/`Edit`/`WebFetch` need `--allow-tools` and run under an OS sandbox |
+| Baseline arm | `--ablation with-without` (default when a plugin resolves) re-runs every case with no plugin. `tool_used: Skill` graders become an indicator, not part of the score |
+| Output (`--json`) | `schemaVersion: 1`, `costUsd`, `partial`, `cases[].graders[]` (definitions with `type`, `config`), `cases[].arms.{with,without}[]` runs with `score`, `passed`, `turns`, `costUsd`, `judgeCostUsd`, `durationSeconds`, `error`, `graders[]` verdicts (`passed`, `explanation`, `withOnly`, `scored`, `judgeVotes`) |
+| Exit codes | 0 done, 1 a case below `--threshold` (sf passes `0` and judges itself), 2 partial (cost ceiling) |
+| Publishing | the HTML report is **published to claude.ai by default**; sf always passes `--no-publish` |
+| Slash prompts | a case whose prompt is `/skill …` never records a `Skill` tool call (§1), so don't grade it with `tool_used: Skill` |
+
+## 7. Still unverified
 
 - Token usage location inside `~/.claude/projects/*.jsonl` transcripts (we avoid depending on it).
-- Behaviour of plugin **skills** under `--bare` (hooks are documented as skipped). Checked in Phase 4.
+- Behaviour of plugin skills under `--bare`: no longer needed, since evals run through `claude plugin eval`,
+  which gives each run its own isolated home and config.

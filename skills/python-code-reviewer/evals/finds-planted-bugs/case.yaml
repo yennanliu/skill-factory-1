@@ -1,0 +1,26 @@
+schema_version: "1.1"
+name: finds-planted-bugs
+description: inventory.py has a mutable default, a bare except and a divide-by-zero on empty input.
+tags: [judged]
+execution:
+  prompt: "Review the Python code in inventory.py."
+  max_turns: 12
+  allowed_tools: [Read, Glob, Grep, Skill]
+context:
+  scaffold_script: _shared/buggy_module.sh
+graders:
+  - name: mutable-default
+    type: llm
+    criteria: The review flags the mutable default argument `items=[]` in add_item as a bug.
+  - name: bare-except
+    type: llm
+    criteria: The review flags the bare `except:` in load_config (it hides real errors).
+  - name: empty-list
+    type: llm
+    criteria: The review flags that average_price raises ZeroDivisionError on an empty list.
+  - name: rating-format
+    type: regex
+    pattern: 'Overall Rating:?\**\s*\d+(\.\d+)?\s*/\s*10'
+  - name: skill-fired
+    type: tool_used
+    tool: Skill
