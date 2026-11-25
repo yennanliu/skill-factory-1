@@ -336,13 +336,15 @@ def eval_cmd(
     skills: Annotated[list[str] | None, typer.Argument(help="Skills to evaluate.")] = None,
     all_skills: Annotated[bool, typer.Option("--all", help="Every skill that has evals/.")] = False,
     runs: Annotated[
-        int | None, typer.Option(help="Runs per case (default: spec evals.runs).")
+        int | None, typer.Option(min=1, help="Runs per case (default: spec evals.runs).")
     ] = None,
     model: Annotated[
         str | None, typer.Option(help="Model (default: spec targets.models[0]).")
     ] = None,
     budget: Annotated[float, typer.Option(help="Hard USD ceiling per skill.")] = 2.0,
-    jobs: Annotated[int, typer.Option("--jobs", "-j", help="Concurrent agent runs (1-8).")] = 1,
+    jobs: Annotated[
+        int, typer.Option("--jobs", "-j", min=1, max=8, help="Concurrent agent runs (1-8).")
+    ] = 1,
     case: Annotated[str | None, typer.Option(help="Only cases matching this glob.")] = None,
     tag: Annotated[list[str] | None, typer.Option(help="Only cases with this tag.")] = None,
     no_baseline: Annotated[
@@ -411,7 +413,7 @@ def eval_cmd(
             )
         for note in summary.notes:
             err.print(f"  [yellow]note:[/] {note}")
-        if summary.status in ("below-min", "no-runs"):
+        if summary.status in ("below-min", "no-runs", "partial"):
             failed = True
     console.print(table)
     if failed:

@@ -127,3 +127,9 @@ def test_untrusted_text_is_not_rich_markup(repo, monkeypatch) -> None:  # type: 
     (repo / "skills" / "alpha" / "spec.yaml").write_text("name: [/oops]\n")
     out = runner.invoke(app, ["spec", "validate"])
     assert out.exit_code == 1 and "MarkupError" not in repr(out.exception)
+
+
+def test_eval_rejects_bad_jobs_and_runs(repo, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.chdir(repo)
+    assert runner.invoke(app, ["eval", "alpha", "-j", "16"]).exit_code == 2
+    assert runner.invoke(app, ["eval", "alpha", "--runs", "0"]).exit_code == 2
