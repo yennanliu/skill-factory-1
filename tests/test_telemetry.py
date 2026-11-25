@@ -202,3 +202,14 @@ def test_stale_pid_file_is_not_trusted(tmp_path: Path) -> None:
     assert not (tmp_path / "collector.pid").exists()
     assert otel.down(tmp_path) is False  # never kills an unrelated process
     assert otel.stored_port(tmp_path) == otel.DEFAULT_PORT
+
+
+def test_up_refuses_a_port_another_collector_holds(
+    tmp_path: Path, collector: tuple[str, Path]
+) -> None:
+    from skill_factory.telemetry import otel
+
+    port = int(collector[0].rsplit(":", 1)[1])
+    with pytest.raises(RuntimeError, match="already in use"):
+        otel.up(tmp_path / "otel", port)
+    assert not (tmp_path / "otel" / "collector.pid").exists()
