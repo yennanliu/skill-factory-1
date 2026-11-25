@@ -91,3 +91,33 @@ def test_missing_files(repo: Path) -> None:
     (repo / "skills" / "alpha" / "spec.yaml").unlink()
     with pytest.raises(SkillError, match=re.escape("missing spec.yaml")):
         load_skill(repo / "skills" / "alpha")
+
+
+def test_parse_frontmatter_crlf_and_empty_block() -> None:
+    fm, body = parse_frontmatter("---\r\nname: a\r\ndescription: b\r\n---\r\n\r\n# T\r\n")
+    assert fm == {"name": "a", "description": "b"} and body == "# T\n"
+    fm, body = parse_frontmatter("---\n---\n# T\n\ntext\n\n---\n")
+    assert fm == {} and body.startswith("# T")
+    # a closing delimiter must be a whole line
+    assert parse_frontmatter("---\nname: a\n---x\n")[0] == {}
+
+
+def test_discover_without_skills_dir(tmp_path: Path) -> None:
+    assert discover(tmp_path) == []
+
+
+@pytest.mark.parametrize(
+    ("allowed", "msg"),
+    [
+        ("Read, Bash", "doesn't list: Bash"),
+        ("", "lacks required tools: Read"),
+        ("Read, Write", "grants forbidden tools: Write"),
+    ],
+)
+def test_allowed_tools_must_match_spec(repo: Path, allowed: str, msg: str) -> None:
+    spec = repo / "skills" / "alpha" / "spec.yaml"
+    spec.write_text(spec.read_text() + "tools:\n  required: [Read]\n  forbidden: [Write]\n")
+    md = repo / "skills" / "alpha" / "SKILL.md"
+    md.write_text(md.read_text().replace("description:", f"allowed-tools: {allowed}\ndescription:"))
+    with pytest.raises(SkillError, match=re.escape(msg)):
+        load_skill(repo / "skills" / "alpha")

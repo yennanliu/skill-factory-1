@@ -25,7 +25,7 @@ lose it under pressure.
 | Pattern | Recognition cue | Invariant | Target | Classic bug |
 |---|---|---|---|---|
 | **Binary search, exact** | sorted, find a value | the target, if present, is in `[lo, hi]` | O(log n) | `(lo+hi)/2` overflow in Java; `lo <= hi` vs `lo < hi` mismatched with the update |
-| **Binary search, boundary** | "first / last index that…" | everything `< lo` fails the predicate | O(log n) | returning `mid` instead of `lo`; an infinite loop when `hi = mid` meets `mid = (lo+hi)/2` on a 2-element range |
+| **Binary search, boundary** | "first / last index that…" | everything `< lo` fails the predicate | O(log n) | returning `mid` instead of `lo`; an infinite loop when `lo = mid` meets a floor `mid = (lo+hi)//2` on a 2-element range with `lo < hi` (`hi = mid` + `lo = mid + 1` always progresses; `lo = mid` needs a ceiling `mid`) |
 | **Binary search on the answer** | "minimum capacity / speed such that…" | `feasible()` is monotone in the answer | O(n log range) | a `feasible` that is not actually monotone |
 
 ## Stacks and queues

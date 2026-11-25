@@ -13,7 +13,9 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -51,8 +53,9 @@ class Scrubber:
 
     def obj(self, o: Any) -> Any:
         if isinstance(o, dict):
+            # keys go through the same id mapping (e.g. tool_use ids used as dict keys)
             return {
-                k: ("<redacted>" if k in BLANK_KEYS else self.obj(v))
+                self.text(k): ("<redacted>" if k in BLANK_KEYS else self.obj(v))
                 for k, v in o.items()
                 if k not in DROP_KEYS
             }
@@ -63,21 +66,39 @@ class Scrubber:
         return o
 
 
-for case in sorted(p for p in raw_dir.iterdir() if p.is_dir()):
+def sanitize_case(case: Path, out: Path) -> None:
+    """Sanitize one probe case into `out`. Raises on incomplete or invalid captures."""
     sc = Scrubber()
-    out = dest_dir / case.name
-    (out / "hooks").mkdir(parents=True, exist_ok=True)
-    for old in (out / "hooks").glob("*.json"):
-        old.unlink()
-    for i, src in enumerate(sorted((case / "hooks").glob("*.json"))):
+    (out / "hooks").mkdir(parents=True)
+    hooks = sorted((case / "hooks").glob("*.json"))
+    if not hooks:
+        raise ValueError(f"{case.name}: no hook payloads captured")
+    for i, src in enumerate(hooks):
         event = src.stem.split("-", 1)[1]
         data = sc.obj(json.loads(src.read_text()))
         (out / "hooks" / f"{i:02d}-{event}.json").write_text(
             json.dumps(data, indent=2, sort_keys=True) + "\n"
         )
-    lines = []
-    for raw in (case / "stream.jsonl").read_text().splitlines():
-        if raw.strip():
-            lines.append(json.dumps(sc.obj(json.loads(raw)), sort_keys=True))
-    (out / "stream.jsonl").write_text("\n".join(lines) + "\n")
-    print(f"wrote {out}")
+    raw_lines = (case / "stream.jsonl").read_text().splitlines()
+    lines = [json.loads(raw) for raw in raw_lines if raw.strip()]
+    if not lines or lines[-1].get("type") != "result":
+        raise ValueError(f"{case.name}: stream.jsonl is empty or has no final result event")
+    clean = [json.dumps(sc.obj(x), sort_keys=True) for x in lines]
+    (out / "stream.jsonl").write_text("\n".join(clean) + "\n")
+
+
+# Stage everything first; replace the destination only when every case succeeded.
+staging = Path(tempfile.mkdtemp(prefix="sf-sanitize-"))
+try:
+    cases = sorted(p for p in raw_dir.iterdir() if p.is_dir())
+    for case in cases:
+        sanitize_case(case, staging / case.name)
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    for case in cases:
+        target = dest_dir / case.name
+        if target.exists():
+            shutil.rmtree(target)
+        shutil.copytree(staging / case.name, target)
+        print(f"wrote {target}")
+finally:
+    shutil.rmtree(staging, ignore_errors=True)
