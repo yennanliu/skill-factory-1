@@ -23,6 +23,9 @@ uv run sf spec validate      # validate skills/*/spec.yaml + SKILL.md frontmatte
 uv run sf build              # regenerate plugins/ + .claude-plugin/marketplace.json
 uv run sf release lc-add --bump patch   # bump skill + plugin version, rebuild
 uv run sf lint               # house rules; --list-rules, --changed, --format github, --strict
+uv run sf new my-skill --tier experimental --goal "..."   # scaffold spec.yaml + stub + starter eval
+uv run sf compile my-skill   # spec.yaml -> SKILL.md.new + draft evals (Claude Opus 5.5); --apply to accept
+uv run sf compile --check    # CI: fail if a compiled skill's spec changed since compiling
 uv run sf eval lc-add        # run a skill's evals (via `claude plugin eval`), with a no-skill baseline
 uv run sf eval --all --runs 3 -j 8   # every skill; results in runs/<skill>/<timestamp>/
 uvx pre-commit install       # lint changed skills + check generated files on every commit
@@ -65,6 +68,19 @@ Two sources, both local-only (`$SF_HOME`, default `~/.skill-factory/`):
    `~/.claude/settings.json` so it displays `$0.42 · Opus 5.5 · ctx 31% · lc-add`. The cost turns yellow at 50% of
    the session budget and red at 80%. There are no hard caps.
 
+## Authoring / 撰寫
+`spec.yaml` is the source of truth (Uber's lesson: write the spec first so intent survives model changes).
+`sf compile` asks Claude for the description, the body and 3–5 draft eval cases, using structured output.
+It runs the linter on the result and feeds any failures back (up to 2 retries). It writes `SKILL.md.new`
+and shows a diff, so nothing is overwritten unless you pass `--apply`. The compiled `SKILL.md` carries
+`<!-- sf:spec-sha256=… -->`, so `sf lint` (SF012) and `sf compile --check` catch specs edited without
+recompiling. Backends:
+- `--backend claude-cli` (default): `claude -p --json-schema` with no tools, using your Claude Code login.
+- `--backend api`: the Anthropic SDK (`ANTHROPIC_API_KEY` or `ant auth login`), streaming, adaptive
+  thinking, server-side refusal fallbacks.
+
+Draft eval cases are tagged `draft` and are never overwritten once they exist. Review them before trusting them.
+
 ## Evals / 評測
 Cases live in `skills/<name>/evals/<case>/case.yaml`, in Claude Code's own
 [plugin eval format](https://code.claude.com/docs/en/plugin-evals.md). Shared scaffold scripts go in `evals/_shared/`.
@@ -87,8 +103,8 @@ Each skill's status is checked against its spec: `ok`, `below-min` (exit 1) or `
 | `docs/CLAUDE_CODE_CONTRACT.md` | Claude Code facts we depend on, confirmed by the probe |
 
 ## Status / 狀態
-Phase 5 (report, status line) — see [the implementation plan](docs/IMPLEMENTATION_PLAN.en.md).
-階段 5（報表、status line）— 見[實作計畫](docs/IMPLEMENTATION_PLAN.zh-TW.md)。
+Phase 6 (spec compiler, sf new) — see [the implementation plan](docs/IMPLEMENTATION_PLAN.en.md).
+階段 6（spec 編譯器、sf new）— 見[實作計畫](docs/IMPLEMENTATION_PLAN.zh-TW.md)。
 
 ## References / 參考
 - Uber Engineering — [How Uber Evals 1 Million Agent Skill Invocations a Month](https://www.uber.com/us/en/blog/optimizing-ubers-agent-skills/) (2026-11-23)

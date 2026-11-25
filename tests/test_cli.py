@@ -109,3 +109,20 @@ def test_report_and_statusline_cli(repo, monkeypatch, tmp_path) -> None:  # type
         app, ["statusline", "install", "--settings", str(tmp_path / "other.json")], input="n\n"
     )
     assert declined.exit_code == 1 and not (tmp_path / "other.json").exists()
+
+
+def test_new_and_compile_cli(repo, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    from skill_factory.compile import backend as backend_mod
+    from tests.test_compile import FakeBackend, answer
+
+    monkeypatch.chdir(repo)
+    made = runner.invoke(app, ["new", "fresh", "--tier", "core", "--goal", "Be fresh."])
+    assert made.exit_code == 0, made.output
+    assert runner.invoke(app, ["new", "fresh"]).exit_code == 2  # exists
+    fake = FakeBackend([answer(desc="Does fresh. Use when asked.", body=answer()["body"])])
+    monkeypatch.setattr(backend_mod, "get_backend", lambda _name: fake)
+    out = runner.invoke(app, ["compile", "fresh"])
+    assert out.exit_code == 0, out.output
+    assert "SKILL.md.new" in out.output and "+description: Does fresh" in out.output
+    assert runner.invoke(app, ["compile", "--check"]).exit_code == 0
+    assert runner.invoke(app, ["compile"]).exit_code == 2
