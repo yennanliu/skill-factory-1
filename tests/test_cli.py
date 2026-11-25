@@ -152,7 +152,7 @@ def test_ablate_bench_judge_cli(repo, monkeypatch) -> None:  # type: ignore[no-u
     monkeypatch.setattr(eval_runner, "run_eval", fake_run_eval)
     ab = runner.invoke(app, ["ablate", "alpha"])
     assert ab.exit_code == 0, ab.output
-    assert ("ablation-minus-extra", None, False) in calls and "keep section" in ab.output
+    assert ("ablation-minus-01-extra", None, False) in calls and "keep section" in ab.output
     assert list((repo / "runs" / "alpha").glob("*-ablation.json"))
     assert runner.invoke(app, ["ablate", "alpha", "--section", "Nope"]).exit_code == 2
 
@@ -236,3 +236,37 @@ def test_compile_apply_with_lint_errors_keeps_skill_md(repo, monkeypatch) -> Non
     assert (repo / "skills" / "alpha" / "SKILL.md").read_text() == before
     assert (repo / "skills" / "alpha" / "SKILL.md.new").is_file()
     assert runner.invoke(app, ["compile", "alpha", "--retries", "-1"]).exit_code == 2
+
+
+def test_bench_refuses_unsafe_recommendations(repo, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    from skill_factory.eval import runner as eval_runner
+    from skill_factory.eval.runner import EvalError
+    from tests.test_ablation import summary
+
+    monkeypatch.chdir(repo)
+
+    def fake(skill, runs_dir, opts, **kw):  # type: ignore[no-untyped-def]
+        if opts.model == "broken":
+            raise EvalError("timeout")
+        return summary([True, False, False], 0.01), runs_dir
+
+    monkeypatch.setattr(eval_runner, "run_eval", fake)
+    spec = (repo / "skills" / "alpha" / "spec.yaml").read_text()
+    out = runner.invoke(app, ["bench", "alpha", "--models", "a,broken", "--write"])
+    assert out.exit_code == 1 and "--write skipped" in out.output
+    assert "no model meets min_pass_rate" in out.output and "no result for broken" in out.output
+    assert (repo / "skills" / "alpha" / "spec.yaml").read_text() == spec
+
+
+def test_judge_calibrate_vote_and_single_class_checks(repo, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    from skill_factory.compile import backend as backend_mod
+    from tests.test_ablation import Judge
+
+    monkeypatch.chdir(repo)
+    cal = repo / "skills" / "alpha" / "evals" / "_calibration"
+    cal.mkdir(parents=True)
+    (cal / "s.yaml").write_text("- {id: a, criteria: c, response: r1, label: pass}\n")
+    assert runner.invoke(app, ["judge", "calibrate", "alpha", "--votes", "2"]).exit_code == 2
+    monkeypatch.setattr(backend_mod, "get_backend", lambda _n: Judge({"r1": ["PASS"] * 3}))
+    out = runner.invoke(app, ["judge", "calibrate", "alpha"])
+    assert out.exit_code == 3 and "same class" in out.output

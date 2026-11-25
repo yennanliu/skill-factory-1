@@ -14,7 +14,6 @@ agreement and Cohen's kappa. Below kappa 0.6 the judge's verdicts on that skill 
 
 from __future__ import annotations
 
-from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -58,6 +57,14 @@ class Graded:
     def agrees(self) -> bool:
         return self.judge == self.item.label
 
+    @property
+    def majority_reason(self) -> str:
+        """A reason from a vote that agrees with the final verdict."""
+        return next(
+            (r for v, r in zip(self.votes, self.reasons, strict=True) if v == self.judge),
+            self.reasons[0] if self.reasons else "",
+        )
+
 
 def load_items(evals_dir: Path) -> list[Item]:
     items = []
@@ -82,7 +89,10 @@ def grade(item: Item, backend: Backend, model: str, votes: int = 3) -> Graded:
         ans = backend.generate(JUDGE_SYSTEM, user, JUDGE_SCHEMA, model).data
         verdicts.append(ans["verdict"] == "PASS")
         reasons.append(str(ans.get("reason", "")))
-    majority = Counter(verdicts).most_common(1)[0][0]
+    if not verdicts:
+        raise ValueError("votes must be >= 1")
+    # PASS only on a strict majority: a tie means the criterion isn't clearly met.
+    majority = sum(verdicts) > len(verdicts) / 2
     return Graded(item, majority, verdicts, reasons)
 
 

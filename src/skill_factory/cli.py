@@ -644,10 +644,15 @@ def ablate_cmd(
     try:
         console.print(f"full skill + no-skill baseline ({len(secs)} section variants follow)…")
         full, _ = run_eval(s, root / "runs", opts, label="ablation-full")
-        variants = []
-        for sec in secs:
-            console.print(f"  without '{sec.title}'…")
-            variant_md = ablation.without_section(text, sec)
+    except EvalError as e:  # without the full run there is nothing to compare against
+        err.print(f"[red]error:[/] {escape(str(e))}")
+        raise typer.Exit(1) from e
+    variants = []
+    for sec in secs:  # one failed variant must not throw away the others
+        console.print(f"  without '{sec.title}'…")
+        variant_md = ablation.without_section(text, sec)
+        saved = approx_tokens(text) - approx_tokens(variant_md)
+        try:
             summary, _ = run_eval(
                 s,
                 root / "runs",
@@ -655,16 +660,11 @@ def ablate_cmd(
                 skill_md=variant_md,
                 label=f"ablation-minus-{sec.slug}",
             )
-            variants.append(
-                {
-                    "section": sec.title,
-                    "summary": summary.to_json(),
-                    "tokens_saved": approx_tokens(text) - approx_tokens(variant_md),
-                }
-            )
-    except EvalError as e:
-        err.print(f"[red]error:[/] {e}")
-        raise typer.Exit(1) from e
+        except EvalError as e:
+            err.print(f"  [red]error:[/] {escape(str(e))}")
+            variants.append({"section": sec.title, "error": str(e), "tokens_saved": saved})
+            continue
+        variants.append({"section": sec.title, "summary": summary.to_json(), "tokens_saved": saved})
     doc = ablation.report(full.to_json(), variants)
     stamp = datetime.now(UTC).strftime("%Y-%m-%dT%H-%M-%SZ")
     out = root / "runs" / skill / f"{stamp}-ablation.json"
@@ -713,13 +713,15 @@ def bench_cmd(
     root = _root()
     s = load_skill(root / "skills" / skill)
     summaries = {}
+    failed_models = []
     for m in [x.strip() for x in models.split(",") if x.strip()]:
         console.print(f"{m}…")
         opts = EvalOptions(runs=runs, model=m, budget_usd=budget, concurrency=jobs, ablation=False)
         try:
             summaries[m], _ = run_eval(s, root / "runs", opts, label=f"bench-{m}")
         except EvalError as e:
-            err.print(f"[red]error:[/] {m}: {e}")
+            failed_models.append(m)
+            err.print(f"[red]error:[/] {m}: {escape(str(e))}")
     table_rows = bench.rows(summaries, s.spec.evals.min_pass_rate)
     best = bench.recommend(table_rows)
     table = Table(
@@ -742,6 +744,20 @@ def bench_cmd(
     console.print(table)
     if best is None:
         raise typer.Exit(1)
+    best_row = next(r for r in table_rows if r.model == best)
+    problems = []
+    if failed_models:
+        problems.append(f"no result for {', '.join(failed_models)} (the answer may be one of them)")
+    if not best_row.meets_bar:
+        problems.append(f"no model meets min_pass_rate; {best} is only the best of the rest")
+    if any(r.partial for r in table_rows):
+        problems.append("some results are partial (cost ceiling hit); raise --budget")
+    if problems:
+        for p in problems:
+            err.print(f"[yellow]not recommending:[/] {p}")
+        if write:
+            err.print("[yellow]--write skipped[/]")
+        raise typer.Exit(1)
     console.print(f"recommended default: {best}")
     if write:
         order = bench.write_default_model(s.spec_path, best)
@@ -756,7 +772,7 @@ app.add_typer(judge_app, name="judge")
 def judge_calibrate(
     skill: Annotated[str, typer.Argument(help="Skill whose evals/_calibration/ to use.")],
     model: Annotated[str, typer.Option(help="Judge model.")] = "claude-haiku-5-5",
-    votes: Annotated[int, typer.Option(help="Votes per item (majority wins).")] = 3,
+    votes: Annotated[int, typer.Option(min=1, help="Votes per item (odd; majority wins).")] = 3,
     backend: Annotated[
         Literal["claude-cli", "api"], typer.Option(help="claude-cli (default) or api.")
     ] = "claude-cli",
@@ -773,6 +789,9 @@ def judge_calibrate(
         raise typer.Exit(2) from e
     if not items:
         err.print(f"[red]error:[/] no items in skills/{skill}/evals/_calibration/*.yaml")
+        raise typer.Exit(2)
+    if votes % 2 == 0:
+        err.print("[red]error:[/] --votes must be odd so there is always a majority")
         raise typer.Exit(2)
     be = get_backend(backend)
     graded = []
@@ -798,8 +817,14 @@ def judge_calibrate(
     console.print(f"agreement {agreement:.0%}, Cohen's kappa {k} ({len(graded)} items, {model})")
     for g in graded:
         if not g.agrees:
-            console.print(f"  [yellow]{g.item.id}[/]: {g.reasons[0][:200]}")
-    if kappa is None or kappa < judge.KAPPA_TRUST:
+            console.print(f"  [yellow]{g.item.id}[/]: {escape(g.majority_reason[:200])}")
+    if kappa is None:
+        err.print(
+            "[yellow]warning:[/] kappa is undefined: every label (and verdict) is the same "
+            "class. Add both pass and fail items to the calibration set."
+        )
+        raise typer.Exit(3)
+    if kappa < judge.KAPPA_TRUST:
         err.print(
             f"[yellow]warning:[/] kappa below {judge.KAPPA_TRUST}; don't trust llm graders "
             f"for {skill} until the criteria or labels are fixed"

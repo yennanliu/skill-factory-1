@@ -16,6 +16,7 @@ class BenchRow:
     mean_cost_usd: float | None
     fired: float | None  # share of runs where the Skill tool fired (cases that check it)
     meets_bar: bool
+    partial: bool = False  # cost ceiling hit: too few runs to trust
 
 
 def fired_rate(s: SkillSummary) -> float | None:
@@ -31,7 +32,9 @@ def rows(summaries: dict[str, SkillSummary], min_pass_rate: float) -> list[Bench
             s.pass_rate,
             s.mean_cost_usd,
             fired_rate(s),
-            s.pass_rate is not None and s.pass_rate >= min_pass_rate,
+            # a truncated (partial) sample never counts as meeting the bar
+            s.pass_rate is not None and s.pass_rate >= min_pass_rate and not s.partial,
+            s.partial,
         )
         for m, s in summaries.items()
     ]
@@ -47,10 +50,19 @@ def recommend(table: list[BenchRow]) -> str | None:
 
 
 def write_default_model(spec_path: Path, model: str) -> list[str]:
-    """Move `model` to the front of targets.models (adding it if missing); keeps comments."""
+    """Move `model` to the front of targets.models (adding it if missing).
+
+    Edits the existing YAML sequence in place, so comments and flow style survive.
+    """
     doc = yamlio.load(spec_path)
-    targets = doc.setdefault("targets", {})
-    models = [m for m in targets.get("models", []) if m != model]
-    targets["models"] = [model, *models]
+    if doc.get("targets") is None:
+        doc["targets"] = {}
+    targets = doc["targets"]
+    if targets.get("models") is None:
+        targets["models"] = []
+    seq = targets["models"]
+    while model in seq:
+        seq.remove(model)
+    seq.insert(0, model)
     yamlio.dump(doc, spec_path)
-    return list(targets["models"])
+    return [str(m) for m in seq]

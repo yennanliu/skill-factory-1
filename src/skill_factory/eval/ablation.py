@@ -18,6 +18,7 @@ deletable: delete one, then re-run the ablation before deleting another.
 
 from __future__ import annotations
 
+import hashlib
 import re
 from dataclasses import dataclass
 from typing import Any, Literal
@@ -26,7 +27,8 @@ LIFT_MARGIN = 0.10  # pass-rate difference treated as noise at the run counts we
 COST_RATIO = 1.5
 
 SECTION_RE = re.compile(r"^## +(.+?)\s*$", re.M)
-FENCE_RE = re.compile(r"^```.*?^```", re.S | re.M)
+FENCE_RE = re.compile(r"^[ \t]{0,4}(```|~~~).*?^[ \t]{0,4}\1", re.S | re.M)
+TRAILING_MARKER_RE = re.compile(r"\n*<!-- sf:[^>]*-->\s*\Z")
 
 
 @dataclass(frozen=True)
@@ -34,10 +36,14 @@ class Section:
     title: str
     start: int  # offset in the SKILL.md text
     end: int
+    index: int = 0
 
     @property
     def slug(self) -> str:
-        return re.sub(r"[^a-z0-9]+", "-", self.title.lower()).strip("-")[:40] or "section"
+        """Unique, path-safe label (non-ASCII titles such as zh-TW fall back to a hash)."""
+        ascii_part = re.sub(r"[^a-z0-9]+", "-", self.title.lower()).strip("-")[:40]
+        tag = ascii_part or hashlib.sha256(self.title.encode()).hexdigest()[:8]
+        return f"{self.index:02d}-{tag}"
 
 
 def sections(skill_md: str) -> list[Section]:
@@ -46,23 +52,30 @@ def sections(skill_md: str) -> list[Section]:
     heads = [
         m for m in SECTION_RE.finditer(skill_md) if not any(a <= m.start() < b for a, b in fenced)
     ]
+    # a trailing build/compile marker belongs to no section
+    marker = TRAILING_MARKER_RE.search(skill_md)
+    doc_end = marker.start() if marker else len(skill_md)
     out = []
     for i, m in enumerate(heads):
-        end = heads[i + 1].start() if i + 1 < len(heads) else len(skill_md)
-        out.append(Section(m.group(1), m.start(), end))
-    # a trailing build/compile marker belongs to no section
+        end = heads[i + 1].start() if i + 1 < len(heads) else doc_end
+        out.append(Section(m.group(1), m.start(), end, i + 1))
     return out
 
 
 def without_section(skill_md: str, section: Section) -> str:
-    tail = skill_md[section.end :]
-    marker = re.search(r"\n*<!-- sf:[^>]*-->\s*$", skill_md[section.start : section.end])
-    keep = marker.group(0) if marker else ""
-    return skill_md[: section.start].rstrip("\n") + "\n\n" + tail.lstrip("\n") + keep
+    head = skill_md[: section.start].rstrip("\n")
+    tail = skill_md[section.end :].lstrip("\n")
+    return f"{head}\n\n{tail}" if tail else f"{head}\n"
 
 
 SkillVerdict = Literal["keep", "optimize", "shorten or retire", "retire", "no baseline"]
-SectionVerdict = Literal["keep section", "delete section", "inconclusive (eval too easy)"]
+SectionVerdict = Literal[
+    "keep section",
+    "delete section",
+    "inconclusive (eval too easy)",
+    "inconclusive (partial run)",
+    "error",
+]
 
 
 def skill_verdict(
@@ -94,14 +107,28 @@ def section_verdict(
 def report(full: dict[str, Any], variants: list[dict[str, Any]]) -> dict[str, Any]:
     """Assemble the ablation.json document from summary dicts (SkillSummary.to_json())."""
     max_rate = float((full.get("policy") or {}).get("max_pass_rate", 1.0))
-    verdict = skill_verdict(
+    verdict: str = skill_verdict(
         full.get("pass_rate"),
         full.get("baseline_pass_rate"),
         full.get("mean_cost_usd"),
         full.get("baseline_mean_cost_usd"),
     )
+    if full.get("partial"):
+        verdict = "inconclusive (partial run)"
     rows = []
     for v in variants:
+        if v.get("error") or (v.get("summary") or {}).get("partial"):
+            rows.append(
+                {
+                    "section": v["section"],
+                    "pass_rate": None,
+                    "delta": None,
+                    "tokens_saved": v.get("tokens_saved", 0),
+                    "verdict": "error" if v.get("error") else "inconclusive (partial run)",
+                    "error": v.get("error"),
+                }
+            )
+            continue
         rows.append(
             {
                 "section": v["section"],
