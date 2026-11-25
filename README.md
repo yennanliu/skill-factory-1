@@ -58,6 +58,12 @@ Two sources, both local-only (`$SF_HOME`, default `~/.skill-factory/`):
    eval "$(uv run sf otel env)"      # then start claude from this shell
    uv run sf stats --since 1d        # calls, model/user trigger, sessions, cost/call, tool errors
    ```
+3. **Report**: `uv run sf report` writes `report/index.html`, one self-contained page (no JS, no CDN). It shows, per
+   skill: calls, model/user split, cost/call (mean and p90), tool errors, repos, active weeks, versions in use,
+   skills used alongside, a 14-day sparkline, context cost, and the latest eval with its baseline verdict.
+4. **Status line**: `uv run sf statusline install [--budget 2]` shows a diff, then sets `statusLine` in
+   `~/.claude/settings.json` so it displays `$0.42 · Opus 5.5 · ctx 31% · lc-add`. The cost turns yellow at 50% of
+   the session budget and red at 80%. There are no hard caps.
 
 ## Evals / 評測
 Cases live in `skills/<name>/evals/<case>/case.yaml`, in Claude Code's own
@@ -81,8 +87,8 @@ Each skill's status is checked against its spec: `ok`, `below-min` (exit 1) or `
 | `docs/CLAUDE_CODE_CONTRACT.md` | Claude Code facts we depend on, confirmed by the probe |
 
 ## Status / 狀態
-Phase 4 (evals) — see [the implementation plan](docs/IMPLEMENTATION_PLAN.en.md).
-階段 4（評測）— 見[實作計畫](docs/IMPLEMENTATION_PLAN.zh-TW.md)。
+Phase 5 (report, status line) — see [the implementation plan](docs/IMPLEMENTATION_PLAN.en.md).
+階段 5（報表、status line）— 見[實作計畫](docs/IMPLEMENTATION_PLAN.zh-TW.md)。
 
 ## References / 參考
 - Uber Engineering — [How Uber Evals 1 Million Agent Skill Invocations a Month](https://www.uber.com/us/en/blog/optimizing-ubers-agent-skills/) (2026-11-23)

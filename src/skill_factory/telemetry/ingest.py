@@ -1,10 +1,11 @@
 """Load hook events (events.jsonl) and OTel logs (logs.jsonl) into DuckDB tables.
 
 Tables
-  hook_events(ts, event, session_id, skill, plugin, qualified, trigger, model, tool, error_code)
+  hook_events(ts, event, session_id, skill, plugin, qualified, trigger, model, tool, error_code,
+              cwd_hash)
   otel_events(ts, event, session_id, prompt_id, qualified, trigger, model, cost_usd,
               input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens,
-              tool_name, success, duration_ms)
+              tool_name, success, duration_ms, plugin_name, plugin_version)
 
 `qualified` is the skill name as Claude Code reports it ("<plugin>:<skill>", or "<skill>").
 """
@@ -33,6 +34,7 @@ HOOK_COLS = [
     "model",
     "tool",
     "error_code",
+    "cwd_hash",
 ]
 OTEL_COLS = [
     "ts",
@@ -50,17 +52,20 @@ OTEL_COLS = [
     "tool_name",
     "success",
     "duration_ms",
+    "plugin_name",
+    "plugin_version",
 ]
 
 DDL = """
 CREATE OR REPLACE TABLE hook_events (
   ts TIMESTAMP, event VARCHAR, session_id VARCHAR, skill VARCHAR, plugin VARCHAR,
-  qualified VARCHAR, trigger VARCHAR, model VARCHAR, tool VARCHAR, error_code INTEGER);
+  qualified VARCHAR, trigger VARCHAR, model VARCHAR, tool VARCHAR, error_code INTEGER,
+  cwd_hash VARCHAR);
 CREATE OR REPLACE TABLE otel_events (
   ts TIMESTAMP, event VARCHAR, session_id VARCHAR, prompt_id VARCHAR, qualified VARCHAR,
   trigger VARCHAR, model VARCHAR, cost_usd DOUBLE, input_tokens BIGINT, output_tokens BIGINT,
   cache_read_tokens BIGINT, cache_creation_tokens BIGINT, tool_name VARCHAR, success BOOLEAN,
-  duration_ms BIGINT);
+  duration_ms BIGINT, plugin_name VARCHAR, plugin_version VARCHAR);
 """
 
 
@@ -131,6 +136,8 @@ def iter_otel_events(path: Path) -> Iterator[tuple[Any, ...]]:
                         a.get("tool_name"),
                         None if success is None else str(success).lower() == "true",
                         _num(a.get("duration_ms"), int),
+                        a.get("plugin.name"),
+                        a.get("plugin.version"),
                     )
 
 

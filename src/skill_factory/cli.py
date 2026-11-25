@@ -398,6 +398,95 @@ def eval_cmd(
         raise typer.Exit(1)
 
 
+@app.command("report")
+def report_cmd(
+    out: Annotated[Path, typer.Option(help="Output HTML file.")] = Path("report/index.html"),
+    since: Annotated[str, typer.Option(help="Telemetry window: 12h, 7d, 4w.")] = "30d",
+    days: Annotated[int, typer.Option(help="Days in the per-skill sparkline.")] = 14,
+    events_file: Annotated[Path | None, typer.Option(help="Hook events file.")] = None,
+    otel_logs: Annotated[Path | None, typer.Option(help="OTel logs file.")] = None,
+) -> None:
+    """Write a static HTML report: usage, cost, errors and latest eval results per skill."""
+    from datetime import UTC, datetime
+
+    from skill_factory.report.data import build_rows, usage_by_skill
+    from skill_factory.report.render import render
+    from skill_factory.telemetry.ingest import connect
+    from skill_factory.telemetry.stats import parse_since
+
+    root = _root()
+    try:
+        start = parse_since(since)
+    except ValueError as e:
+        err.print(f"[red]error:[/] {e}")
+        raise typer.Exit(2) from e
+    now = datetime.now(UTC).replace(tzinfo=None)
+    ev = events_file or sf_home() / "telemetry" / "events.jsonl"
+    ol = otel_logs or _otel_dir() / "logs.jsonl"
+    skills = []
+    for path in discover(root):
+        try:
+            skills.append(load_skill(path))
+        except SkillError as e:
+            err.print(f"[yellow]skipping {e.skill}:[/] {'; '.join(e.problems)}")
+    usage = usage_by_skill(connect(ev, ol), start, now, days)
+    rows, others = build_rows(skills, usage, root / "runs")
+    html = render(
+        rows,
+        others,
+        since=start,
+        generated=now,
+        sources={"events": str(ev), "otel": str(ol), "runs": str(root / "runs")},
+    )
+    target = out if out.is_absolute() else root / out
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(html)
+    console.print(f"wrote {target} ({len(rows)} skills, {len(others)} other)")
+
+
+statusline_app = typer.Typer(
+    help="Claude Code status line (cost, model, context, skill).", no_args_is_help=True
+)
+app.add_typer(statusline_app, name="statusline")
+
+
+@statusline_app.command("install")
+def statusline_install(
+    settings: Annotated[
+        Path | None, typer.Option(help="Settings file (default ~/.claude/settings.json).")
+    ] = None,
+    yes: Annotated[bool, typer.Option("--yes", help="Apply without asking.")] = False,
+    budget: Annotated[
+        float | None, typer.Option(help="Session budget in USD (colours the cost).")
+    ] = None,
+) -> None:
+    """Copy the status-line script to $SF_HOME/bin and set statusLine in settings (shows a diff)."""
+    import json
+
+    from skill_factory.statusline import diff, install_script, plan_settings
+
+    root = _root()
+    settings = settings or Path.home() / ".claude" / "settings.json"
+    script = sf_home() / "bin" / "sf_statusline.py"
+    old, new, _ = plan_settings(settings, script)
+    if old == new:
+        console.print("statusLine already set")
+    else:
+        print(diff(old, new, settings))
+        if not yes and not typer.confirm(f"Write {settings}?"):
+            raise typer.Exit(1)
+    install_script(root, sf_home())
+    if old != new:
+        settings.parent.mkdir(parents=True, exist_ok=True)
+        settings.write_text(new)
+    if budget is not None:
+        cfg_path = sf_home() / "config.json"
+        cfg = json.loads(cfg_path.read_text()) if cfg_path.is_file() else {}
+        cfg["session_budget_usd"] = budget
+        cfg_path.write_text(json.dumps(cfg, indent=2) + "\n")
+    console.print(f"installed {script}; restart Claude Code to see it")
+
+
 @app.callback()
 def main() -> None:
     """Skill factory CLI."""
