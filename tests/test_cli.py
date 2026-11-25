@@ -175,3 +175,18 @@ def test_eval_rejects_bad_jobs_and_runs(repo, monkeypatch) -> None:  # type: ign
     monkeypatch.chdir(repo)
     assert runner.invoke(app, ["eval", "alpha", "-j", "16"]).exit_code == 2
     assert runner.invoke(app, ["eval", "alpha", "--runs", "0"]).exit_code == 2
+
+
+def test_compile_apply_with_lint_errors_keeps_skill_md(repo, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    from skill_factory.compile import backend as backend_mod
+    from tests.test_compile import FakeBackend, answer
+
+    monkeypatch.chdir(repo)
+    before = (repo / "skills" / "alpha" / "SKILL.md").read_text()
+    bad = answer(body=answer()["body"] + "\nlog to /tmp/shared.log\n")  # SF010 error
+    monkeypatch.setattr(backend_mod, "get_backend", lambda _n: FakeBackend([bad, bad, bad]))
+    out = runner.invoke(app, ["compile", "alpha", "--apply"])
+    assert out.exit_code == 1
+    assert (repo / "skills" / "alpha" / "SKILL.md").read_text() == before
+    assert (repo / "skills" / "alpha" / "SKILL.md.new").is_file()
+    assert runner.invoke(app, ["compile", "alpha", "--retries", "-1"]).exit_code == 2

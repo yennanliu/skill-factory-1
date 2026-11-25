@@ -560,7 +560,7 @@ def compile_cmd(
         Literal["claude-cli", "api"], typer.Option(help="claude-cli (default) or api.")
     ] = "claude-cli",
     model: Annotated[str, typer.Option(help="Authoring model.")] = "claude-opus-5-5",
-    retries: Annotated[int, typer.Option(help="Lint-feedback retries.")] = 2,
+    retries: Annotated[int, typer.Option(min=0, help="Lint-feedback retries.")] = 2,
 ) -> None:
     """Compile spec.yaml into SKILL.md (+ draft eval cases); writes SKILL.md.new unless --apply."""
     from skill_factory.compile.backend import BackendError, get_backend
@@ -589,7 +589,10 @@ def compile_cmd(
     except BackendError as e:
         err.print(f"[red]error:[/] {e}")
         raise typer.Exit(1) from e
-    target, cases = write_outputs(s, result, apply)
+    has_errors = any(f.severity == "error" for f in result.findings)
+    if apply and has_errors:
+        err.print("[yellow]lint errors remain: writing SKILL.md.new instead of overwriting[/]")
+    target, cases = write_outputs(s, result, apply and not has_errors)
     if not apply:
         print(diff(s.skill_md.read_text(), result.skill_md, f"skills/{skill}/SKILL.md"))
     cost = f", ${result.cost_usd:.3f}" if result.cost_usd is not None else ""
@@ -600,7 +603,7 @@ def compile_cmd(
         err.print(f"  [yellow]lint {f.severity}:[/] {f.rule} {f.message}")
     if not apply:
         console.print(f"review, then `uv run sf compile {skill} --apply` (or move SKILL.md.new)")
-    if any(f.severity == "error" for f in result.findings):
+    if has_errors:
         raise typer.Exit(1)
 
 
