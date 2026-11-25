@@ -1,0 +1,8 @@
+{
+  "cwd": "<TMP>/work",
+  "hook_event_name": "SessionEnd",
+  "prompt_id": "<UUID1>",
+  "reason": "other",
+  "session_id": "<UUID0>",
+  "transcript_path": "<HOME>/.claude/projects/<TMP_SLUG>-work/<UUID0>.jsonl"
+}

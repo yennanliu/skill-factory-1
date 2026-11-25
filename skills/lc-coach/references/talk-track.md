@@ -47,8 +47,8 @@ interviewer redirect you before you have sunk 15 minutes.
 problem solving:
 
 > "Two-pointers doesn't fit because the max doesn't move monotonically. Let me try what a
-> heap gives me: I'd get the max in O(log k), but stale entries are the problem — I'd need
-> lazy deletion. Let me see whether a deque avoids that."
+> heap gives me: lazy deletion leaves stale entries in it, so on increasing input it can hold
+> O(n) items and each push is O(log n), not O(log k). Let me see whether a deque avoids that."
 
 ## Phase 3 — Code (10–15 min)
 
