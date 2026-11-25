@@ -38,6 +38,16 @@ console = Console()
 err = Console(stderr=True)
 
 
+EVAL_MD_HEADER = (
+    "### sf eval\n\n| skill | status | pass | 95% CI | without skill | runs | cost |\n"
+    "|---|---|---|---|---|---|---|\n"
+)
+
+
+def _pct(v: float | None) -> str:
+    return "-" if v is None else f"{v:.0%}"
+
+
 def _root() -> Path:
     try:
         return repo_root()
@@ -331,12 +341,27 @@ def eval_cmd(
     allow_tools: Annotated[
         list[str] | None, typer.Option("--allow-tools", help="Extra tool grants.")
     ] = None,
+    changed: Annotated[
+        bool, typer.Option("--changed", help="Only skills with changed files (git).")
+    ] = False,
+    base: Annotated[str | None, typer.Option(help="With --changed: compare to this ref.")] = None,
+    summary_md: Annotated[
+        Path | None, typer.Option(help="Append a markdown summary table here (CI).")
+    ] = None,
 ) -> None:
     """Run skills' eval suites via `claude plugin eval` and check pass rates against the spec."""
     from skill_factory.eval.runner import EvalError, EvalOptions, run_eval
 
     root = _root()
-    if all_skills:
+    if changed:
+        names = [n for n in changed_skills(root, base) if (root / "skills" / n / "evals").is_dir()]
+        if not names:
+            console.print("no changed skills with evals")
+            if summary_md:
+                with summary_md.open("a") as f:
+                    f.write("### sf eval\n\nNo changed skills with evals.\n")
+            return
+    elif all_skills:
         names = [p.name for p in discover(root) if (p / "evals").is_dir()]
     elif skills:
         names = skills
@@ -354,6 +379,7 @@ def eval_cmd(
         allow_tools=tuple(allow_tools or ()),
     )
     table = Table("skill", "status", "pass rate", "95% CI", "baseline", "runs", "cost", "results")
+    md_rows: list[str] = []
     failed = False
     for name in names:
         try:
@@ -367,16 +393,20 @@ def eval_cmd(
         lo, hi = summary.interval
         colour = {"ok": "green", "too-easy": "yellow"}.get(summary.status, "red")
         rate = summary.pass_rate
-        base = summary.baseline_pass_rate
+        base_rate = summary.baseline_pass_rate
         table.add_row(
             name,
             f"[{colour}]{summary.status}[/]",
             f"{rate:.0%}" if rate is not None else "-",
             f"{lo:.0%}-{hi:.0%}",
-            f"{base:.0%}" if base is not None else "-",
+            _pct(base_rate),
             str(summary.runs),
             f"${summary.total_cost_usd:.2f}",
             str(out_dir.relative_to(root)),
+        )
+        md_rows.append(
+            f"| `{name}` | {summary.status} | {_pct(rate)} | {lo:.0%}-{hi:.0%} | {_pct(base_rate)} "
+            f"| {summary.runs} | ${summary.total_cost_usd:.2f} |"
         )
         for c in summary.cases:
             cr = c.pass_rate
@@ -394,6 +424,9 @@ def eval_cmd(
         if summary.status in ("below-min", "no-runs"):
             failed = True
     console.print(table)
+    if summary_md:
+        with summary_md.open("a") as f:
+            f.write(EVAL_MD_HEADER + "\n".join(md_rows) + "\n")
     if failed:
         raise typer.Exit(1)
 
@@ -563,10 +596,6 @@ def compile_cmd(
         console.print(f"review, then `uv run sf compile {skill} --apply` (or move SKILL.md.new)")
     if any(f.severity == "error" for f in result.findings):
         raise typer.Exit(1)
-
-
-def _pct(v: float | None) -> str:
-    return "-" if v is None else f"{v:.0%}"
 
 
 @app.command("ablate")
@@ -945,6 +974,112 @@ def analyze_cmd(
         )
         for f in s.findings:
             console.print(f"  [yellow]{f.pattern}[/]: {f.detail}\n    fix: {f.fix}")
+
+
+@app.command("install")
+def install_cmd(
+    agent: Annotated[Literal["codex", "opencode", "gemini"], typer.Option(help="Target agent.")],
+    scope: Annotated[
+        Literal["user", "project"], typer.Option(help="User-wide or the current project.")
+    ] = "user",
+    skills: Annotated[list[str] | None, typer.Argument(help="Skills (default: all).")] = None,
+    all_skills: Annotated[
+        bool, typer.Option("--all-skills", help="Ignore spec targets.agents.")
+    ] = False,
+    dest: Annotated[Path | None, typer.Option(help="Override the target directory.")] = None,
+    dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would happen.")] = False,
+) -> None:
+    """Copy built skills into Codex / OpenCode / Gemini CLI skill directories."""
+    from skill_factory import install
+
+    root = _root()
+    chosen = (
+        [load_skill(root / "skills" / n) for n in skills]
+        if skills
+        else [load_skill(p) for p in discover(root)]
+    )
+    target = dest or install.target_dir(agent, scope, Path.home(), Path.cwd())
+    planned = install.plan(chosen, root, agent, target, all_skills)
+    table = Table("skill", "action", "destination")
+    for p in planned:
+        table.add_row(p.skill, p.action, str(p.dest))
+    console.print(table)
+    if dry_run:
+        return
+    target.mkdir(parents=True, exist_ok=True)
+    try:
+        for p in planned:
+            install.apply(p, agent)
+    except FileNotFoundError as e:
+        err.print(f"[red]error:[/] {e}")
+        raise typer.Exit(1) from e
+    done = sum(p.action in ("install", "update") for p in planned)
+    console.print(f"{done} skill(s) installed for {agent} in {target}")
+    if any(p.action == "skip-target" for p in planned):
+        console.print(
+            "skip-target: the spec's targets.agents doesn't list this agent "
+            "(use --all-skills to override)"
+        )
+    if any(p.action == "skip-foreign" for p in planned):
+        console.print("skip-foreign: a skill with that name exists and wasn't installed by sf")
+
+
+agent_app = typer.Typer(
+    help="Managed agents: skills run headless with an outcome metric.", no_args_is_help=True
+)
+app.add_typer(agent_app, name="agent")
+
+
+@agent_app.command("list")
+def agent_list() -> None:
+    """List managed agents defined in managed/*.yaml."""
+    from skill_factory import agents
+
+    table = Table("agent", "model", "plugins", "description")
+    for a in agents.load(_root()).values():
+        table.add_row(a.name, a.model, ", ".join(a.plugins), a.description)
+    console.print(table)
+
+
+@agent_app.command("run")
+def agent_run(
+    name: Annotated[str | None, typer.Argument(help="Agent to run.")] = None,
+    all_agents: Annotated[bool, typer.Option("--all", help="Run every agent.")] = False,
+    summary_md: Annotated[Path | None, typer.Option(help="Append a markdown summary.")] = None,
+) -> None:
+    """Run managed agent(s) headless; record cost and outcome under runs/agents/."""
+    from skill_factory import agents
+
+    root = _root()
+    defs = agents.load(root)
+    chosen = list(defs.values()) if all_agents else ([defs[name]] if name in defs else [])
+    if not chosen:
+        err.print(f"[red]error:[/] unknown agent {name!r}; see `sf agent list`")
+        raise typer.Exit(2)
+    failed = False
+    lines = []
+    for a in chosen:
+        console.print(f"{a.name}…")
+        rec, path = agents.run(a, root)
+        cost = "-" if rec.cost_usd is None else f"${rec.cost_usd:.4f}"
+        status = "[green]pass[/]" if rec.passed else "[red]fail[/]"
+        console.print(f"  {status} · {cost} · {rec.turns} turns · {path.relative_to(root)}")
+        for label, ok in rec.checks.items():
+            if not ok:
+                console.print(f"  [yellow]failed check:[/] {label}")
+        if rec.error:
+            console.print(f"  [red]error:[/] {rec.error}")
+        lines.append(f"| `{a.name}` | {'pass' if rec.passed else 'fail'} | {cost} | {rec.turns} |")
+        failed |= not rec.passed
+    if summary_md:
+        with summary_md.open("a") as f:
+            f.write(
+                "### managed agents\n\n| agent | outcome | cost | turns |\n|---|---|---|---|\n"
+                + "\n".join(lines)
+                + "\n"
+            )
+    if failed:
+        raise typer.Exit(1)
 
 
 @app.callback()

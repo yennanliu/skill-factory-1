@@ -1,0 +1,50 @@
+name: nightly-evals
+
+on:
+  schedule:
+    - cron: "17 3 * * *"  # daily 03:17 UTC; ablation on Mondays
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: check for credentials
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::error::ANTHROPIC_API_KEY secret is required for nightly evals"; exit 1
+          fi
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: install Claude Code (pinned) + sandbox deps
+        run: |
+          npm install -g "@anthropic-ai/claude-code@$(cat .claude-version)"
+          sudo apt-get update -q && sudo apt-get install -yq bubblewrap socat
+      - run: uv sync --locked && uv run sf build
+      - name: full eval suite
+        run: uv run sf eval --all --runs 3 -j 8 --budget 5 --summary-md "$GITHUB_STEP_SUMMARY"
+        continue-on-error: true  # a below-min skill should still produce the report
+      - name: weekly ablation (Mondays)
+        run: |
+          if [ "$(date -u +%u)" = "1" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            for s in $(ls skills); do uv run sf ablate "$s" --runs 2 -j 8 || true; done
+          fi
+      - name: report
+        if: always()
+        run: uv run sf report --out report/index.html --events-file /dev/null --otel-logs /dev/null
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: skill-factory-report
+          path: |
+            report/
+            runs/**/summary.json
+            runs/**/*-ablation.json
