@@ -117,4 +117,4 @@ Always check for:
 
 - Do NOT use `Edit` or `Write` unless explicitly asked to fix issues
 
-<!-- sf:spec-sha256=6c9ad8e9d788517640cffad4db5876d34d9e1fe5d425eb591844f3b17e097474 sf:version=1.0.0 -->
+<!-- sf:spec-sha256=dbf01fcf2704ae2d68f1a7bf6cd3e2d0ef7e66f9bf14e059defce0654d036c9c sf:version=1.0.0 -->
