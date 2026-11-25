@@ -81,6 +81,10 @@ def up(otel_dir: Path, port: int = DEFAULT_PORT) -> int:
     """Start the collector in the background; return its pid (existing one if already running)."""
     if (pid := running_pid(otel_dir)) is not None:
         return pid
+    if healthy(port):
+        # Something (e.g. a collector for another SF_HOME) already answers on this port; a new
+        # one couldn't bind, and its data would silently go elsewhere.
+        raise RuntimeError(f"port {port} is already in use by another collector; use --port")
     otel_dir.mkdir(parents=True, exist_ok=True)
     log = (otel_dir / "collector.log").open("a")
     proc = subprocess.Popen(
@@ -100,11 +104,12 @@ def up(otel_dir: Path, port: int = DEFAULT_PORT) -> int:
     )
     _pid_file(otel_dir).write_text(f"{proc.pid} {port}\n")
     for _ in range(50):
+        if proc.poll() is not None:
+            break  # our process died (e.g. bind error): a healthy port isn't ours
         if healthy(port):
             return proc.pid
-        if proc.poll() is not None:
-            break
         time.sleep(0.1)
+    _pid_file(otel_dir).unlink(missing_ok=True)
     raise RuntimeError(f"collector failed to start; see {otel_dir / 'collector.log'}")
 
 

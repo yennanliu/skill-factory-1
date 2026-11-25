@@ -7,6 +7,7 @@ A scaled-down, Uber-style platform for authoring, evaluating, measuring and impr
 （先支援 Claude Code，之後再支援 Codex / OpenCode / Gemini CLI）。
 
 ## Docs / 文件
+- Project site: <http://yennj12.js.org/skill-factory-1/>
 - Design doc (English): [docs/DESIGN.en.md](docs/DESIGN.en.md)
 - 設計文件（繁體中文）：[docs/DESIGN.zh-TW.md](docs/DESIGN.zh-TW.md)
 - Implementation plan (English): [docs/IMPLEMENTATION_PLAN.en.md](docs/IMPLEMENTATION_PLAN.en.md)

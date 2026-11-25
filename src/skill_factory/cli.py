@@ -5,8 +5,9 @@ from __future__ import annotations
 import contextlib
 import shutil
 import subprocess
+import sys
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 import typer
 from rich.console import Console
@@ -35,8 +36,17 @@ otel_app = typer.Typer(
     help="Local OpenTelemetry collector (http/json, 127.0.0.1).", no_args_is_help=True
 )
 app.add_typer(otel_app, name="otel")
-console = Console()
-err = Console(stderr=True)
+# Pipes and CI logs get a wide fixed width instead of rich's 80-column default.
+console = Console(width=None if sys.stdout.isatty() else 160)
+err = Console(stderr=True, width=None if sys.stderr.isatty() else 160)
+
+
+def _table(*columns: str, **kwargs: Any) -> Table:
+    """A rich Table whose cells wrap long values (skill names, paths) instead of eliding them."""
+    t = Table(**kwargs)
+    for c in columns:
+        t.add_column(c, overflow="fold")
+    return t
 
 
 EVAL_MD_HEADER = (
@@ -95,7 +105,7 @@ def spec_validate(
     """Validate spec.yaml + SKILL.md frontmatter for one or all skills."""
     root = _root()
     paths = [root / "skills" / skill] if skill else discover(root)
-    table = Table("skill", "version", "tier", "plugin", "status")
+    table = _table("skill", "version", "tier", "plugin", "status")
     failed = 0
     for path in paths:
         if not path.is_dir():
@@ -191,7 +201,7 @@ def lint_cmd(
 ) -> None:
     """Lint skills against the house rules (design doc §6)."""
     if list_rules:
-        table = Table("id", "name", "severity", "checks")
+        table = _table("id", "name", "severity", "checks")
         for r in RULES.values():
             table.add_row(r.id, r.name, r.severity, r.summary)
         console.print(table)
@@ -316,7 +326,7 @@ def stats_cmd(
         console.print(f"no skill activity since {start:%Y-%m-%d %H:%M} UTC")
         console.print(f"(hook events: {ev}; otel logs: {ol})")
         return
-    table = Table(
+    table = _table(
         "skill",
         "calls",
         "model/user",
@@ -400,7 +410,7 @@ def eval_cmd(
         ablation=not no_baseline,
         allow_tools=tuple(allow_tools or ()),
     )
-    table = Table("skill", "status", "pass rate", "95% CI", "baseline", "runs", "cost", "results")
+    table = _table("skill", "status", "pass rate", "95% CI", "baseline", "runs", "cost", "results")
     md_rows: list[str] = []
     failed = False
     for name in names:
@@ -703,7 +713,7 @@ def ablate_cmd(
         f"[bold]{skill}[/]: {doc['verdict']} (with {_pct(doc['pass_rate'])}, "
         f"without {_pct(doc['baseline_pass_rate'])}; margin ±{ablation.LIFT_MARGIN:.0%})"
     )
-    table = Table("section removed", "pass rate", "Δ", "~tokens saved", "verdict")
+    table = _table("section removed", "pass rate", "Δ", "~tokens saved", "verdict")
     for r in doc["sections"]:
         delta = "-" if r["delta"] is None else f"{r['delta']:+.0%}"
         table.add_row(
@@ -754,7 +764,7 @@ def bench_cmd(
             err.print(f"[red]error:[/] {m}: {escape(str(e))}")
     table_rows = bench.rows(summaries, s.spec.evals.min_pass_rate)
     best = bench.recommend(table_rows)
-    table = Table(
+    table = _table(
         "model",
         "pass rate",
         "mean cost/run",
@@ -825,7 +835,7 @@ def judge_calibrate(
         raise typer.Exit(2)
     be = get_backend(backend)
     graded = []
-    table = Table("item", "author", "judge", "votes", "agree")
+    table = _table("item", "author", "judge", "votes", "agree")
     try:
         for it in items:
             g = judge.grade(it, be, model, votes)
@@ -888,7 +898,7 @@ def papercuts_list(
     if not cuts:
         console.print(f"no {status} papercuts ({pc.inbox_path(sf_home())})")
         return
-    table = Table("id", "filed", "skill", "sev", "status", "what happened")
+    table = _table("id", "filed", "skill", "sev", "status", "what happened")
     for c in sorted(cuts, key=lambda c: (pc.SEVERITY_ORDER.get(c.severity, 9), c.ts)):
         table.add_row(
             c.id, c.ts[:10], c.short_skill, c.severity, pc.status_of(c.id, state), c.happened[:70]
@@ -901,7 +911,7 @@ def papercuts_group() -> None:
     """Papercut counts per skill and severity."""
     from skill_factory import papercuts as pc
 
-    table = Table("skill", "reports", "high", "med", "low")
+    table = _table("skill", "reports", "high", "med", "low")
     for name, n, sev in pc.group(pc.load(sf_home())):
         table.add_row(name, str(n), str(sev["high"]), str(sev["med"]), str(sev["low"]))
     console.print(table)
@@ -1017,7 +1027,7 @@ def search_cmd(
     if not hits:
         console.print("no matching skills")
         return
-    table = Table("skill", "score", "quality", "tier", "install")
+    table = _table("skill", "score", "quality", "tier", "install")
     for h in hits:
         table.add_row(h.skill, f"{h.score:.2f}", f"{h.quality:.0%}", h.tier, h.install)
     console.print(table)
@@ -1086,7 +1096,7 @@ def install_cmd(
         raise typer.Exit(2) from e
     target = dest or install.target_dir(agent, scope, Path.home(), Path.cwd())
     planned = install.plan(chosen, root, agent, target, all_skills)
-    table = Table("skill", "action", "destination")
+    table = _table("skill", "action", "destination")
     for p in planned:
         table.add_row(p.skill, p.action, str(p.dest))
     console.print(table)
@@ -1122,7 +1132,7 @@ def agent_list() -> None:
     """List managed agents defined in managed/*.yaml."""
     from skill_factory import agents
 
-    table = Table("agent", "model", "plugins", "description")
+    table = _table("agent", "model", "plugins", "description")
     for a in agents.load(_root()).values():
         table.add_row(a.name, a.model, ", ".join(a.plugins), a.description)
     console.print(table)

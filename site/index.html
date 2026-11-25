@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>skill-factory</title>
+<meta name="description" content="Spec-first, evaluated and measured agent skills for Claude Code. Author, lint, evaluate, measure and improve skills.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%232f6fed'/><path d='M9 21l5-10 4 7 3-4 3 7' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="#top" aria-label="skill-factory home">
+      <span class="logo" aria-hidden="true"></span>skill-factory
+    </a>
+    <nav aria-label="Sections">
+      <a href="#loop">How it works</a>
+      <a href="#results">Results</a>
+      <a href="#quickstart">Quickstart</a>
+      <a href="#commands">Commands</a>
+      <a href="#docs">Docs</a>
+      <a class="gh" href="https://github.com/yennanliu/skill-factory-1">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero wrap">
+    <p class="eyebrow">Agent skills, treated as software</p>
+    <h1>Every skill proven to help,<br>with a known cost.</h1>
+    <p class="lede">
+      skill-factory is a small, Uber-style platform for Claude Code skills. Write a spec,
+      compile it into a <code>SKILL.md</code>, lint it, evaluate it against a no-skill baseline,
+      ship it as a plugin, measure what it costs per call, and let agents report what breaks.
+    </p>
+    <div class="cta">
+      <a class="btn primary" href="#quickstart">Get started</a>
+      <a class="btn" href="https://github.com/yennanliu/skill-factory-1">View on GitHub</a>
+    </div>
+    <dl class="stats">
+      <div><dt>269</dt><dd>tests</dd></div>
+      <div><dt>13+1</dt><dd>lint rules</dd></div>
+      <div><dt>6</dt><dd>skills shipped</dd></div>
+      <div><dt>3</dt><dd>agents supported</dd></div>
+    </dl>
+  </section>
+
+  <section id="loop" class="band">
+    <div class="wrap">
+      <h2>The loop</h2>
+      <p class="sub">Nothing is overwritten silently, nothing ships unmeasured.</p>
+      <ol class="loop">
+        <li><b>Spec</b><span><code>spec.yaml</code> is the source of truth</span></li>
+        <li><b>Compile</b><span>Claude writes <code>SKILL.md</code> + draft evals</span></li>
+        <li><b>Lint</b><span>house rules, waivers tracked</span></li>
+        <li><b>Eval</b><span>with vs. without the skill</span></li>
+        <li><b>Ship</b><span>plugin marketplace, tiered</span></li>
+        <li><b>Measure</b><span>calls, cost per call, errors</span></li>
+        <li><b>Papercut</b><span>agents file what broke</span></li>
+        <li><b>Fix</b><span>regression case → recompile</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="wrap">
+    <h2>What's inside</h2>
+    <div class="grid">
+      <article class="card">
+        <h3>Spec compiler</h3>
+        <p><code>sf compile</code> turns a spec into a lint-clean <code>SKILL.md</code> and draft eval
+        cases, feeding lint failures back to the model. Uses your Claude Code login or the API.</p>
+      </article>
+      <article class="card">
+        <h3>Evals with a baseline</h3>
+        <p><code>sf eval</code> runs Claude Code's own <code>claude plugin eval</code> harness, with
+        and without the skill, and reports pass rates with 95% intervals against the spec's bar.</p>
+      </article>
+      <article class="card">
+        <h3>Ablation &amp; model bench</h3>
+        <p><code>sf ablate</code> removes one section at a time; <code>sf bench</code> finds the
+        cheapest model that clears the bar; <code>sf judge calibrate</code> checks the LLM judge.</p>
+      </article>
+      <article class="card">
+        <h3>Telemetry, locally</h3>
+        <p>Hooks plus a tiny OTLP collector on 127.0.0.1. Cost per skill comes from
+        <code>api_request.cost_usd</code> grouped by <code>skill.name</code>. No prompts recorded.</p>
+      </article>
+      <article class="card">
+        <h3>Papercuts</h3>
+        <p>An always-on skill lets agents file structured friction reports.
+        <code>sf papercuts promote</code> turns one into a failing regression case.</p>
+      </article>
+      <article class="card">
+        <h3>Ship anywhere</h3>
+        <p>A Claude Code plugin marketplace, plus <code>sf install</code> for Codex, OpenCode
+        and Gemini CLI. CI, nightly evals and scheduled managed agents included.</p>
+      </article>
+    </div>
+  </section>
+
+  <section id="results" class="band">
+    <div class="wrap">
+      <h2>Measured, not assumed</h2>
+      <p class="sub">Pass rate with the skill vs. the same model without it (3 runs per case, Sonnet).</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Skill</th><th>With skill</th><th>Without</th><th>Verdict</th></tr></thead>
+          <tbody>
+            <tr><td><code>log-papercut</code></td><td class="num">100%</td><td class="num">0%</td><td><span class="pill good">helps</span></td></tr>
+            <tr><td><code>find-skills</code></td><td class="num">88%</td><td class="num">0%</td><td><span class="pill good">helps</span></td></tr>
+            <tr><td><code>python-code-reviewer</code></td><td class="num">100%</td><td class="num">50%</td><td><span class="pill good">helps</span></td></tr>
+            <tr><td><code>lc-add</code></td><td class="num">92%</td><td class="num">67%</td><td><span class="pill good">helps</span></td></tr>
+            <tr><td><code>lc-coach</code></td><td class="num">67%</td><td class="num">33%</td><td><span class="pill warn">below bar</span></td></tr>
+            <tr><td><code>fastapi-master</code></td><td class="num">100%</td><td class="num">100%</td><td><span class="pill bad">no measurable value</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note">That last row is the point: without a baseline, every skill looks like it works.</p>
+    </div>
+  </section>
+
+  <section id="quickstart" class="wrap">
+    <h2>Quickstart</h2>
+    <div class="cols">
+      <div>
+        <h3>Use the skills</h3>
+        <pre><code>/plugin marketplace add yennanliu/skill-factory-1
+/plugin install sf-platform@skill-factory
+/plugin install sf-core@skill-factory</code></pre>
+      </div>
+      <div>
+        <h3>Work on the repo</h3>
+        <pre><code>git clone https://github.com/yennanliu/skill-factory-1
+cd skill-factory-1
+uv sync
+uv run sf --help
+scripts/e2e_local.sh   # end-to-end check</code></pre>
+      </div>
+    </div>
+    <h3>A new skill in minutes</h3>
+    <pre><code>uv run sf new my-skill --goal "One sentence on what it achieves."
+# edit skills/my-skill/spec.yaml: triggers, outputs, tools
+uv run sf compile my-skill --apply     # spec → SKILL.md + draft evals
+uv run sf eval my-skill --runs 3       # with vs. without the skill
+uv run sf build                        # → plugins/ + marketplace.json</code></pre>
+  </section>
+
+  <section id="commands" class="band">
+    <div class="wrap">
+      <h2>Commands</h2>
+      <div class="table-wrap">
+        <table class="cmds">
+          <tbody>
+            <tr><td><code>sf new</code> / <code>sf compile</code></td><td>scaffold a skill; compile its spec into SKILL.md and draft evals</td></tr>
+            <tr><td><code>sf spec validate</code> / <code>sf lint</code></td><td>validate specs; lint against the house rules</td></tr>
+            <tr><td><code>sf build</code> / <code>sf release</code></td><td>generate the plugin marketplace; bump skill + plugin versions</td></tr>
+            <tr><td><code>sf eval</code></td><td>run eval suites with a no-skill baseline</td></tr>
+            <tr><td><code>sf ablate</code> / <code>sf bench</code></td><td>what each section contributes; cheapest model that clears the bar</td></tr>
+            <tr><td><code>sf judge calibrate</code></td><td>LLM judge vs. your labels (Cohen's κ)</td></tr>
+            <tr><td><code>sf otel up</code> / <code>sf stats</code></td><td>local telemetry collector; per-skill calls, cost and errors</td></tr>
+            <tr><td><code>sf report</code> / <code>sf analyze</code></td><td>HTML report; costliest sessions and wasteful patterns</td></tr>
+            <tr><td><code>sf papercuts</code> / <code>sf search</code></td><td>triage agent-filed reports; find an existing skill</td></tr>
+            <tr><td><code>sf install</code> / <code>sf agent run</code></td><td>install into Codex / OpenCode / Gemini CLI; run managed agents</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="docs" class="wrap">
+    <h2>Docs</h2>
+    <div class="grid docs">
+      <a class="card link" href="https://github.com/yennanliu/skill-factory-1/blob/main/docs/DESIGN.en.md">
+        <h3>Design</h3><p>What we build and why, mapped from Uber's skill platform.</p>
+      </a>
+      <a class="card link" href="https://github.com/yennanliu/skill-factory-1/blob/main/docs/IMPLEMENTATION_PLAN.en.md">
+        <h3>Implementation plan</h3><p>Ten phases, data contracts, decisions log.</p>
+      </a>
+      <a class="card link" href="https://github.com/yennanliu/skill-factory-1/blob/main/docs/CLAUDE_CODE_CONTRACT.md">
+        <h3>Claude Code contract</h3><p>Hook, OTel and eval-harness facts, verified by probes.</p>
+      </a>
+      <a class="card link" href="https://github.com/yennanliu/skill-factory-1/blob/main/README.md">
+        <h3>README</h3><p>Every command, telemetry setup, CI and layout.</p>
+      </a>
+    </div>
+    <p class="note">中文：<a href="https://github.com/yennanliu/skill-factory-1/blob/main/docs/DESIGN.zh-TW.md">設計文件</a> ·
+      <a href="https://github.com/yennanliu/skill-factory-1/blob/main/docs/IMPLEMENTATION_PLAN.zh-TW.md">實作計畫</a></p>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <p>Inspired by Uber Engineering:
+      <a href="https://www.uber.com/us/en/blog/optimizing-ubers-agent-skills/">How Uber Evals 1 Million Agent Skill Invocations a Month</a> and
+      <a href="https://www.uber.com/us/en/blog/efficient-software-factory/">Running a Software Factory Efficiently at Uber Scale</a>.</p>
+    <p>Skill format: <a href="https://agentskills.io">agentskills.io</a> · Code on <a href="https://github.com/yennanliu/skill-factory-1">GitHub</a></p>
+  </div>
+</footer>
+<script>
+  // Copy buttons for code blocks (progressive enhancement; the page works without JS).
+  document.querySelectorAll("pre").forEach((pre) => {
+    const b = document.createElement("button");
+    b.className = "copy"; b.type = "button"; b.textContent = "Copy";
+    b.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(pre.innerText); b.textContent = "Copied"; }
+      catch { b.textContent = "Select + copy"; }
+      setTimeout(() => (b.textContent = "Copy"), 1500);
+    });
+    pre.appendChild(b);
+  });
+</script>
+</body>
+</html>
