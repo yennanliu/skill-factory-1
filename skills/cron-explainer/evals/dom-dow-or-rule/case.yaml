@@ -7,7 +7,7 @@ tags:
 - draft
 execution:
   prompt: 'Explain this crontab line and give the next 3 run times: `0 12 13 * 5 /usr/local/bin/report.sh`.
-    Count from 2026-12-05(?:,? at |[ T]|, )00:00 UTC.'
+    Count from 2026-12-05 00:00 UTC.'
   max_turns: 20
   allowed_tools:
   - Read

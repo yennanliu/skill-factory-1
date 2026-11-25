@@ -5,7 +5,7 @@ description: Step values in the month field with a run sequence crossing into th
 tags:
 - draft
 execution:
-  prompt: When will '0 0 1 */3 *' run next? Now is 2026-11-25(?:,? at |[ T]|, )10:00 UTC.
+  prompt: When will '0 0 1 */3 *' run next? Now is 2026-11-25 10:00 UTC.
   max_turns: 20
   allowed_tools:
   - Read

@@ -249,3 +249,22 @@ def test_exit_1_without_load_errors_is_a_failure(
     monkeypatch.setattr(runner.subprocess, "run", fake)
     with pytest.raises(runner.EvalError, match="exit 1"):
         runner.run_eval(load_skill(evaluated), tmp_path / "runs", EvalOptions(timeout_seconds=5))
+
+
+REGEX_SYNTAX = ("(?:", "[\\s\\S]", "\\d{", "(?i)", "(?<", "\\b(")
+
+
+def test_regex_never_leaks_into_prompts_or_judge_criteria() -> None:
+    """Grader regex belongs in `pattern` only. A prompt (what the model sees) or an llm criterion
+    (what the judge reads) containing regex syntax is a corrupted case."""
+    from ruamel.yaml import YAML
+
+    for f in sorted((ROOT / "skills").glob("*/evals/*/case.yaml")):
+        case = YAML(typ="safe").load(f.read_text())
+        texts = {"prompt": str((case.get("execution") or {}).get("prompt", ""))}
+        for g in case.get("graders") or []:
+            if g.get("type") == "llm":
+                texts[f"criteria of {g.get('name')}"] = str(g.get("criteria", ""))
+        for where, text in texts.items():
+            for token in REGEX_SYNTAX:
+                assert token not in text, f"{f.relative_to(ROOT)}: regex {token!r} in {where}"
