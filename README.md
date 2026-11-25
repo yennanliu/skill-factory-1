@@ -31,6 +31,9 @@ uv run sf eval --all --runs 3 -j 8   # every skill; results in runs/<skill>/<tim
 uv run sf ablate lc-add      # with/without the skill + one run per `##` section removed -> verdicts
 uv run sf bench lc-coach --models claude-haiku-5-5,claude-sonnet-5-5   # cheapest model that meets the bar
 uv run sf judge calibrate lc-coach   # LLM judge vs your labels in evals/_calibration/ (Cohen's kappa)
+uv run sf papercuts list     # reports filed by the log-papercut skill; group / show / promote / close
+uv run sf search "review python code"   # find an existing skill (+ install command)
+uv run sf analyze --since 7d # costliest sessions + wasteful patterns, with a suggested fix each
 uvx pre-commit install       # lint changed skills + check generated files on every commit
 scripts/probe_otel.sh        # re-capture OTel payloads after upgrading the CLI (~$0.01)
 uv run pytest                # unit + Claude Code contract tests
@@ -105,6 +108,18 @@ Each skill's status is checked against its spec: `ok`, `below-min` (exit 1) or `
 - Clean room: every `claude plugin eval` run already gets a temporary home and config, an OS sandbox for shell
   tools, and only the plugin under test, so a separate Docker image isn't needed.
 
+## The improvement loop / 改善循環
+The always-on `sf-platform` plugin ships two skills:
+- **`log-papercut`**: whenever a skill, script or tool misbehaves, the agent files a structured report
+  (`scripts/log_papercut.py` → `$SF_HOME/papercuts/inbox.jsonl`), even if it recovered.
+- **`find-skills`**: before writing a new skill, it searches a catalog bundled at build time
+  (`references/catalog.json`) and returns install commands. It needs no CLI.
+
+The loop: `sf papercuts list`, then `sf papercuts promote <id>` (writes a draft regression case). Make the case
+reproduce the bug and confirm it fails, fix the **spec**, `sf compile --apply`, confirm the case passes, then
+`sf papercuts close <id>`. `sf analyze` covers the waste *between* skills: expensive models on read-only work,
+large tool results, cache expiry after breaks, heavy preloaded context, polling, search thrash and retry loops.
+
 ## Layout / 結構
 | Path | What |
 |---|---|
@@ -119,8 +134,8 @@ Each skill's status is checked against its spec: `ok`, `below-min` (exit 1) or `
 | `docs/CLAUDE_CODE_CONTRACT.md` | Claude Code facts we depend on, confirmed by the probe |
 
 ## Status / 狀態
-Phase 7 (ablation, model benchmark, judge calibration) — see [the implementation plan](docs/IMPLEMENTATION_PLAN.en.md).
-階段 7（消融、模型基準、judge 校準）— 見[實作計畫](docs/IMPLEMENTATION_PLAN.zh-TW.md)。
+Phase 8 (papercuts, find-skills, session analyzer) — see [the implementation plan](docs/IMPLEMENTATION_PLAN.en.md).
+階段 8（papercut、find-skills、session analyzer）— 見[實作計畫](docs/IMPLEMENTATION_PLAN.zh-TW.md)。
 
 ## References / 參考
 - Uber Engineering — [How Uber Evals 1 Million Agent Skill Invocations a Month](https://www.uber.com/us/en/blog/optimizing-ubers-agent-skills/) (2026-11-23)

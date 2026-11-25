@@ -178,6 +178,35 @@ def test_ablate_bench_judge_cli(repo, monkeypatch) -> None:  # type: ignore[no-u
     assert runner.invoke(app, ["judge", "calibrate", "alpha"]).exit_code == 1
 
 
+def test_papercuts_search_analyze_cli(repo, monkeypatch, tmp_path) -> None:  # type: ignore[no-untyped-def]
+    import json
+
+    from tests.test_phase8 import CUT_A, inbox
+
+    home = tmp_path / "home"
+    monkeypatch.setenv("SF_HOME", str(home))
+    monkeypatch.chdir(repo)
+    assert "no open papercuts" in runner.invoke(app, ["papercuts", "list"]).output
+    inbox(home, CUT_A)
+    assert "aaaa1111" in runner.invoke(app, ["papercuts", "list"]).output
+    assert "alpha" in runner.invoke(app, ["papercuts", "group"]).output
+    assert "a JSON score" in runner.invoke(app, ["papercuts", "show", "aaaa"]).output
+    pro = runner.invoke(app, ["papercuts", "promote", "aaaa"])
+    assert pro.exit_code == 0, pro.output
+    assert "no open papercuts" in runner.invoke(app, ["papercuts", "list"]).output
+    assert "promoted" in runner.invoke(app, ["papercuts", "list", "--status", "all"]).output
+    assert runner.invoke(app, ["papercuts", "close", "aaaa", "--note", "fixed"]).exit_code == 0
+    assert runner.invoke(app, ["papercuts", "show", "zzzz"]).exit_code == 2
+
+    out = runner.invoke(app, ["search", "do alpha", "--json"])
+    assert out.exit_code == 0 and json.loads(out.output)[0]["skill"] == "alpha"
+    monkeypatch.setenv("SF_REPO", str(repo))
+    monkeypatch.chdir(tmp_path)  # outside the repo: SF_REPO is used
+    assert "alpha" in runner.invoke(app, ["search", "do alpha"]).output
+
+    assert "no sessions" in runner.invoke(app, ["analyze", "--otel-logs", "/nonexistent"]).output
+
+
 def test_release_reports_rebuild_failure(repo, monkeypatch) -> None:  # type: ignore[no-untyped-def]
     monkeypatch.chdir(repo)
     import skill_factory.cli as cli
@@ -270,3 +299,16 @@ def test_judge_calibrate_vote_and_single_class_checks(repo, monkeypatch) -> None
     monkeypatch.setattr(backend_mod, "get_backend", lambda _n: Judge({"r1": ["PASS"] * 3}))
     out = runner.invoke(app, ["judge", "calibrate", "alpha"])
     assert out.exit_code == 3 and "same class" in out.output
+
+
+def test_search_reports_a_bad_repo(repo, monkeypatch, tmp_path) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.chdir(repo)
+    (repo / "market.yaml").unlink()
+    out = runner.invoke(app, ["search", "alpha"])
+    assert out.exit_code == 2 and "not a skill-factory repo" in out.output
+    home = tmp_path / "h"
+    home.mkdir()
+    (home / "config.json").write_text("{bad")
+    monkeypatch.setenv("SF_HOME", str(home))
+    monkeypatch.chdir(tmp_path)
+    assert runner.invoke(app, ["search", "alpha"]).exit_code == 2

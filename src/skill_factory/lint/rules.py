@@ -281,8 +281,11 @@ def _no_shared_tmp(skill: SkillDir, r: Rule) -> Iterator[Finding]:
 
 @rule("SF011", "scripts-runnable", "error", "referenced scripts exist and are executable")
 def _scripts_runnable(skill: SkillDir, r: Rule) -> Iterator[Finding]:
+    # Scripts the skill runs: everything in spec tools.scripts, plus paths used inside code blocks.
+    # Prose mentions (e.g. another skill's script given as an example) are not checked.
     referenced = set(skill.spec.tools.scripts)
-    referenced |= set(re.findall(r"(?<![\w/])(scripts/[\w./\-]+\.(?:py|sh|js|ts))", skill.body))
+    for block in (m.group(0) for m in FENCE_RE.finditer(skill.body)):
+        referenced |= set(re.findall(r"(?<![\w/])(scripts/[\w./\-]+\.(?:py|sh|js|ts))", block))
     for rel in sorted(referenced):
         p = skill.path / rel
         if not p.is_file():
@@ -323,3 +326,20 @@ def _external_mocked(skill: SkillDir, r: Rule) -> Iterator[Finding]:
             "evals must never hit the real external system; add a mocked case",
             file="spec.yaml",
         )
+
+
+@rule("SF014", "script-mentions", "warning", "scripts mentioned in prose exist")
+def _script_mentions(skill: SkillDir, r: Rule) -> Iterator[Finding]:
+    # SF011 covers scripts the skill runs (code blocks + spec). Prose mentions of a missing
+    # script are usually an instruction gone stale too, but may name another skill's script,
+    # so they are a warning.
+    prose = _strip_fences(skill.body)
+    checked = set(skill.spec.tools.scripts)
+    for rel in sorted(set(re.findall(r"`(scripts/[\w./\-]+\.(?:py|sh|js|ts))`", prose)) - checked):
+        if not (skill.path / rel).is_file():
+            yield finding(
+                r,
+                skill,
+                f"{rel} is mentioned but missing",
+                "add it, list it in tools.scripts, or reword if it is another skill's script",
+            )

@@ -15,3 +15,10 @@ or, once the marketplace is added (`/plugin marketplace add yennanliu/skill-fact
 ```
 /plugin install sf-platform@skill-factory
 ```
+
+## Skills
+
+| Skill | Version | Goal |
+|---|---|---|
+| `find-skills` | 0.1.0 | Before writing a new skill or starting a repetitive workflow from scratch, check whether a skill for the task already exists in the skill-factory marketplace, and tell the user how to install the best match. |
+| `log-papercut` | 0.1.0 | Let the agent file a short structured report ("papercut") whenever a skill, script or tool misbehaves, is confusing, or needs a workaround, so the owner can fix it. Use it even when the agent recovered on its own. |

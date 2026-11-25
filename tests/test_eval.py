@@ -230,3 +230,22 @@ def test_timeout_becomes_eval_error(evaluated: Path, tmp_path: Path, monkeypatch
         runner.run_eval(load_skill(evaluated), tmp_path / "runs", EvalOptions(timeout_seconds=5))
     (log,) = (tmp_path / "runs").rglob("claude-eval.log")
     assert "timed out after 5s" in log.read_text() and "partial out" in log.read_text()
+
+
+def test_exit_1_without_load_errors_is_a_failure(
+    evaluated: Path, tmp_path: Path, monkeypatch
+) -> None:  # type: ignore[no-untyped-def]
+    import subprocess
+
+    from skill_factory.eval import runner
+
+    monkeypatch.setattr(runner.shutil, "which", lambda _x: "/bin/claude")
+
+    def fake(cmd, **kw):  # type: ignore[no-untyped-def]
+        out = Path(cmd[cmd.index("--json") + 1])
+        out.write_text(json.dumps({"schemaVersion": 1, "cases": []}))
+        return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="auth failed")
+
+    monkeypatch.setattr(runner.subprocess, "run", fake)
+    with pytest.raises(runner.EvalError, match="exit 1"):
+        runner.run_eval(load_skill(evaluated), tmp_path / "runs", EvalOptions(timeout_seconds=5))

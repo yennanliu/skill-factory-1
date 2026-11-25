@@ -55,6 +55,8 @@ OTEL_COLS = [
     "duration_ms",
     "plugin_name",
     "plugin_version",
+    "tool_input",
+    "result_bytes",
 ]
 
 DDL = """
@@ -66,7 +68,8 @@ CREATE OR REPLACE TABLE otel_events (
   ts TIMESTAMP, event VARCHAR, session_id VARCHAR, prompt_id VARCHAR, qualified VARCHAR,
   trigger VARCHAR, model VARCHAR, cost_usd DOUBLE, input_tokens BIGINT, output_tokens BIGINT,
   cache_read_tokens BIGINT, cache_creation_tokens BIGINT, tool_name VARCHAR, success BOOLEAN,
-  duration_ms BIGINT, plugin_name VARCHAR, plugin_version VARCHAR);
+  duration_ms BIGINT, plugin_name VARCHAR, plugin_version VARCHAR, tool_input VARCHAR,
+  result_bytes BIGINT);
 """
 
 
@@ -148,6 +151,8 @@ def _otel_row(rec: dict[str, Any]) -> tuple[Any, ...]:
         _num(a.get("duration_ms"), int),
         a.get("plugin.name"),
         a.get("plugin.version"),
+        str(a["tool_input"])[:300] if a.get("tool_input") else None,
+        _num(a.get("tool_result_size_bytes"), int),
     )
 
 

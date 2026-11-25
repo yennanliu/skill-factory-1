@@ -116,12 +116,7 @@ def test_rows_and_render_for_repo_skills(tmp_path: Path) -> None:
     write_summary(tmp_path, "lc-add", "2026-11-01T00-00-00Z", 0.9, 0.6)
     usage = usage_by_skill(connect(Path("/none"), OTEL_LOGS), EPOCH, NOW, 14)
     rows, others = build_rows(skills, usage, tmp_path)
-    assert {r.name for r in rows} == {
-        "lc-add",
-        "lc-coach",
-        "python-code-reviewer",
-        "fastapi-master",
-    }
+    assert {r.name for r in rows} == {s.name for s in skills}
     assert list(others) == ["sf-probe:probe-echo"]
     lc_add = next(r for r in rows if r.name == "lc-add")
     assert lc_add.qualified == "sf-domain-leetcode:lc-add"

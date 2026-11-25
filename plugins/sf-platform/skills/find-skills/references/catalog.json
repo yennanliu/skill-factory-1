@@ -1,0 +1,95 @@
+{
+  "marketplace": "skill-factory",
+  "skills": [
+    {
+      "skill": "fastapi-master",
+      "plugin": "sf-domain-python-web",
+      "tier": "domain",
+      "version": "1.0.0",
+      "goal": "Guide building FastAPI applications: project layout, settings, schemas, dependency injection, auth, database integration, testing and production practices.",
+      "triggers": [
+        "build a FastAPI app / endpoint",
+        "add auth to my FastAPI project",
+        "how should I structure this FastAPI service?"
+      ],
+      "description": "Expert guidance for building FastAPI applications including API design, authentication, database integration, dependency injection, testing, and production best practices. Use when building or working with FastAPI projects.",
+      "install": "/plugin install sf-domain-python-web@skill-factory"
+    },
+    {
+      "skill": "find-skills",
+      "plugin": "sf-platform",
+      "tier": "always-on",
+      "version": "0.1.0",
+      "goal": "Before writing a new skill or starting a repetitive workflow from scratch, check whether a skill for the task already exists in the skill-factory marketplace, and tell the user how to install the best match.",
+      "triggers": [
+        "is there a skill for <task>?",
+        "find a skill that can <task>",
+        "what skills do we have for <topic>?",
+        "the user asks you to write a new skill (check for an existing one first)"
+      ],
+      "description": "Searches the skill-factory marketplace catalog for an existing skill that fits a task and gives the exact /plugin install command for the best match. Use when the user asks \"is there a skill for <task>?\", \"find a skill that can <task>\", \"what skills do we have for <topic>?\", or asks you to write a new skill (check first).",
+      "install": "/plugin install sf-platform@skill-factory"
+    },
+    {
+      "skill": "lc-add",
+      "plugin": "sf-domain-leetcode",
+      "tier": "domain",
+      "version": "1.0.0",
+      "goal": "File a LeetCode solution into the CS_basics repo the way existing ones are filed.",
+      "triggers": [
+        "add LC <number> to <Pattern_Dir>",
+        "/lc-add <number> <Pattern_Dir>",
+        "add this solution and update the README",
+        "file yesterday's contest Q1"
+      ],
+      "description": "File a LeetCode solution into this repo the way the existing ones are filed — find the problem's real slug, write the Python file in the house layout (problem docstring, V0 with an IDEA block and a time/space line), smoke-test it against the examples, and insert the README row. Use when asked to \"add LC <number>\", to file a problem just solved in a weekly contest, to turn a pasted draft into a committed solution, or to wire an existing solution file into README. Triggers - \"add LC 4038 to Hash_table\", \"/lc-add 239 Sliding_Window\", \"add this solution and update the README\", \"file yesterday's contest Q1\".",
+      "install": "/plugin install sf-domain-leetcode@skill-factory"
+    },
+    {
+      "skill": "lc-coach",
+      "plugin": "sf-domain-leetcode",
+      "tier": "domain",
+      "version": "1.0.0",
+      "goal": "Coach a FAANG-style coding interview: score a solution on the six-point scale, write the interviewer's debrief, teach the fundamentals, dry-run code and recommend sibling problems.",
+      "triggers": [
+        "review my solution",
+        "would this pass?",
+        "what's my verdict?",
+        "why is this O(n^2)?",
+        "mock interview me",
+        "what should I do after LC 239?"
+      ],
+      "description": "FAANG coding-interview coach. Scores a solution the way an interviewer does on the six-point scale (SH/H/LH/LNH/NH/SNH), writes the debrief packet from the interviewer's side of the table, teaches the DSA fundamentals underneath, dry-runs code out loud, names the one line that blocks the optimal complexity, and recommends the sibling problems to drill next. Use when preparing for or debriefing a LeetCode-style SWE interview — \"review my solution\", \"would this pass?\", \"what's my verdict?\", \"how would an interviewer see this?\", \"why is this O(n^2)?\", \"mock interview me\", \"what should I do after LC 239?\".",
+      "install": "/plugin install sf-domain-leetcode@skill-factory"
+    },
+    {
+      "skill": "log-papercut",
+      "plugin": "sf-platform",
+      "tier": "always-on",
+      "version": "0.1.0",
+      "goal": "Let the agent file a short structured report (\"papercut\") whenever a skill, script or tool misbehaves, is confusing, or needs a workaround, so the owner can fix it. Use it even when the agent recovered on its own.",
+      "triggers": [
+        "a skill's instructions were wrong, stale or ambiguous",
+        "a script or command a skill told you to run failed or returned something unexpected",
+        "you needed a workaround to finish the user's task",
+        "log a papercut for <skill>"
+      ],
+      "description": "Files a short structured papercut report when a skill, script or tool misbehaves, is confusing, or needs a workaround, even if you recovered. Use when skill instructions were wrong, stale or ambiguous, a command it told you to run failed or surprised you, you needed a workaround, or the user says \"log a papercut for <skill>\".",
+      "install": "/plugin install sf-platform@skill-factory"
+    },
+    {
+      "skill": "python-code-reviewer",
+      "plugin": "sf-core",
+      "tier": "core",
+      "version": "1.0.0",
+      "goal": "Review Python code for quality, bugs, security and best practices, in a fixed report format.",
+      "triggers": [
+        "review this Python code",
+        "review this function / module",
+        "what's wrong with this Python file?"
+      ],
+      "description": "Provides comprehensive Python code review with focus on quality, bugs, security, and best practices. Use when reviewing Python code, functions, or modules for quality assessment.",
+      "install": "/plugin install sf-core@skill-factory"
+    }
+  ]
+}
