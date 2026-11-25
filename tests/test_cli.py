@@ -67,3 +67,28 @@ def test_release_reports_rebuild_failure(repo, monkeypatch) -> None:  # type: ig
     out = runner.invoke(app, ["release", "alpha"])
     assert out.exit_code == 1
     assert "versions were bumped" in out.output and "boom" in out.output
+
+
+def test_lint_changed_edge_cases(repo, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    import json
+    import subprocess
+
+    monkeypatch.chdir(repo)
+    bad = runner.invoke(app, ["lint", "--changed"])  # not a git repo
+    assert bad.exit_code == 2 and "git failed" in bad.output
+    for args in (
+        ["init", "-q", "-b", "main"],
+        ["add", "-A"],
+        ["-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-qm", "i"],
+    ):
+        subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True)
+    out = runner.invoke(app, ["lint", "--changed", "--format", "json"])
+    assert out.exit_code == 0 and json.loads(out.output)["skills"] == []
+    assert runner.invoke(app, ["lint", "alpha", "--changed"]).exit_code == 2
+
+
+def test_untrusted_text_is_not_rich_markup(repo, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.chdir(repo)
+    (repo / "skills" / "alpha" / "spec.yaml").write_text("name: [/oops]\n")
+    out = runner.invoke(app, ["spec", "validate"])
+    assert out.exit_code == 1 and "MarkupError" not in repr(out.exception)

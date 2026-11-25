@@ -9,6 +9,7 @@ from typing import Annotated, Literal
 
 import typer
 from rich.console import Console
+from rich.markup import escape
 from rich.table import Table
 
 from skill_factory import __version__
@@ -35,7 +36,7 @@ def _root() -> Path:
     try:
         return repo_root()
     except FileNotFoundError as e:
-        err.print(f"[red]error:[/] {e}")
+        err.print(f"[red]error:[/] {escape(str(e))}")
         raise typer.Exit(2) from e
 
 
@@ -81,13 +82,13 @@ def spec_validate(
     failed = 0
     for path in paths:
         if not path.is_dir():
-            err.print(f"[red]error:[/] no such skill: {path.name}")
+            err.print(f"[red]error:[/] no such skill: {escape(path.name)}")
             raise typer.Exit(2)
         try:
             s = load_skill(path)
         except SkillError as e:
             failed += 1
-            table.add_row(path.name, "-", "-", "-", "[red]" + "\n".join(e.problems) + "[/]")
+            table.add_row(path.name, "-", "-", "-", "[red]" + escape("\n".join(e.problems)) + "[/]")
             continue
         table.add_row(s.name, s.spec.version, s.spec.tier, s.spec.plugin_name, "[green]ok[/]")
     console.print(table)
@@ -108,7 +109,7 @@ def build_cmd(
             problems = check(root)
             if problems:
                 for p in problems:
-                    err.print(f"[red]stale:[/] {p}")
+                    err.print(f"[red]stale:[/] {escape(p)}")
                 err.print("run `uv run sf build` and commit the result")
                 raise typer.Exit(1)
             console.print("[green]generated files are up to date[/]")
@@ -116,10 +117,10 @@ def build_cmd(
         result = build(root)
     except BuildError as e:
         for p in e.problems:
-            err.print(f"[red]error:[/] {p}")
+            err.print(f"[red]error:[/] {escape(p)}")
         raise typer.Exit(1) from e
     for w in result.warnings:
-        err.print(f"[yellow]warning:[/] {w}")
+        err.print(f"[yellow]warning:[/] {escape(w)}")
     for plugin, skills in result.plugins.items():
         console.print(f"[bold]{plugin}[/]: {', '.join(skills)}")
 
@@ -138,7 +139,7 @@ def release_cmd(
         r = release(root, skill, bump)
     except SkillError as e:
         for p in e.problems:
-            err.print(f"[red]error:[/] {e.skill}: {p}")
+            err.print(f"[red]error:[/] {escape(e.skill)}: {escape(p)}")
         raise typer.Exit(1) from e
     console.print(f"{r.skill}: {r.skill_from} -> {r.skill_to}")
     console.print(f"{r.plugin}: {r.plugin_from} -> {r.plugin_to}")
@@ -148,7 +149,7 @@ def release_cmd(
         except BuildError as e:
             err.print("[yellow]versions were bumped, but the rebuild failed:[/]")
             for p in e.problems:
-                err.print(f"[red]error:[/] {p}")
+                err.print(f"[red]error:[/] {escape(p)}")
             raise typer.Exit(1) from e
         console.print("rebuilt plugins/")
 
@@ -180,19 +181,27 @@ def lint_cmd(
         return
     root = _root()
     if changed:
-        names = changed_skills(root, base)
-        if not names:
-            console.print("no changed skills")
-            return
+        if skills:
+            err.print("[red]error:[/] pass skill names or --changed, not both")
+            raise typer.Exit(2)
+        try:
+            names = changed_skills(root, base)
+        except subprocess.CalledProcessError as e:
+            detail = escape((e.stderr or "").strip() or str(e))  # git output isn't Rich markup
+            err.print(f"[red]error:[/] git failed: {detail}")
+            raise typer.Exit(2) from e
     else:
         names = skills or [p.name for p in discover(root)]
     paths = []
     for n in names:
         if not (root / "skills" / n).is_dir():
-            err.print(f"[red]error:[/] no such skill: {n}")
+            err.print(f"[red]error:[/] no such skill: {escape(n)}")
             raise typer.Exit(2)
         paths.append(root / "skills" / n)
     report = lint_skills(paths)
+    if changed and not names and fmt == "text":
+        console.print("no changed skills")
+        return
     render = {"text": as_text, "json": as_json, "github": as_github}[fmt]
     out = render(report)
     if out:
