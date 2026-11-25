@@ -109,6 +109,21 @@ def test_claude_validates_generated_marketplace(repo: Path) -> None:
     assert out.returncode == 0, out.stdout + out.stderr
 
 
+def test_plugin_assets_are_copied(repo: Path) -> None:
+    (repo / "hooks").mkdir()
+    (repo / "hooks" / "hooks.json").write_text('{"hooks": {}}\n')
+    market = repo / "market.yaml"
+    market.write_text(
+        market.read_text() + "  sf-platform:\n    version: 0.1.0\n    assets: [hooks]\n"
+    )
+    result = build(repo)
+    assert result.plugins["sf-platform"] == []
+    assert (repo / "plugins" / "sf-platform" / "hooks" / "hooks.json").is_file()
+    market.write_text(market.read_text().replace("assets: [hooks]", "assets: [missing]"))
+    with pytest.raises(BuildError, match="asset dir 'missing' does not exist"):
+        build(repo)
+
+
 def test_release_checks_the_plugin_before_writing(repo: Path) -> None:
     from skill_factory.spec import SkillError
 
@@ -137,4 +152,24 @@ def test_build_with_no_plugin_members_keeps_a_valid_tree(repo: Path) -> None:
 def test_invalid_market_yaml_is_a_build_error(repo: Path) -> None:
     (repo / "market.yaml").write_text("plugins:\n  - [unclosed\n")
     with pytest.raises(BuildError, match="not valid YAML"):
+        build(repo)
+
+
+@pytest.mark.parametrize(
+    ("assets", "msg"),
+    [
+        ("[../outside]", "outside the repo"),
+        ("[a/hooks, b/hooks]", "collides with 'hooks'"),
+        ("[skills]", "collides with 'skills'"),
+    ],
+)
+def test_asset_paths_are_validated(repo: Path, assets: str, msg: str) -> None:
+    (repo.parent / "outside").mkdir(exist_ok=True)
+    for d in ("a/hooks", "b/hooks"):
+        (repo / d).mkdir(parents=True, exist_ok=True)
+    market = repo / "market.yaml"
+    market.write_text(
+        market.read_text() + f"  sf-platform:\n    version: 0.1.0\n    assets: {assets}\n"
+    )
+    with pytest.raises(BuildError, match=re.escape(msg)):
         build(repo)

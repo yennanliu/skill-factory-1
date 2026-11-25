@@ -37,7 +37,7 @@ dev = [
 line-length = 100
 target-version = "py312"
 src = ["src", "tests"]
-extend-exclude = ["docs", "skills", "tests/fixtures"]
+extend-exclude = ["docs", "skills", "plugins", "tests/fixtures"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]

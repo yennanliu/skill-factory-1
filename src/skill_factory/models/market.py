@@ -12,6 +12,9 @@ class PluginDef(BaseModel):
 
     version: SemVer = "0.1.0"
     description: str = ""
+    # Repo-relative directories copied into the plugin root under their basename
+    # (e.g. "hooks" -> plugins/<p>/hooks/, which Claude Code loads as hooks/hooks.json).
+    assets: list[str] = []
 
 
 class Market(BaseModel):

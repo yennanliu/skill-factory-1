@@ -1,0 +1,73 @@
+# serializer version: 1
+# name: test_model_triggered_session
+  list([
+    dict({
+      'event': 'session_start',
+      'model': None,
+      'source': 'startup',
+      'v': 1,
+    }),
+    dict({
+      'event': 'skill_invoked',
+      'model': None,
+      'plugin': 'sf-probe',
+      'qualified': 'sf-probe:probe-echo',
+      'skill': 'probe-echo',
+      'source': None,
+      'trigger': 'model',
+      'v': 1,
+    }),
+    dict({
+      'error_code': 1,
+      'event': 'tool_error',
+      'interrupted': False,
+      'model': None,
+      'plugin': 'sf-probe',
+      'qualified': 'sf-probe:probe-echo',
+      'skill': 'probe-echo',
+      'tool': 'Bash',
+      'v': 1,
+    }),
+    dict({
+      'event': 'session_end',
+      'model': None,
+      'v': 1,
+    }),
+  ])
+# ---
+# name: test_user_triggered_session
+  list([
+    dict({
+      'event': 'session_start',
+      'model': None,
+      'source': 'startup',
+      'v': 1,
+    }),
+    dict({
+      'event': 'skill_invoked',
+      'model': None,
+      'plugin': 'sf-probe',
+      'qualified': 'sf-probe:probe-echo',
+      'skill': 'probe-echo',
+      'source': 'plugin',
+      'trigger': 'user',
+      'v': 1,
+    }),
+    dict({
+      'error_code': 1,
+      'event': 'tool_error',
+      'interrupted': False,
+      'model': None,
+      'plugin': 'sf-probe',
+      'qualified': 'sf-probe:probe-echo',
+      'skill': 'probe-echo',
+      'tool': 'Bash',
+      'v': 1,
+    }),
+    dict({
+      'event': 'session_end',
+      'model': None,
+      'v': 1,
+    }),
+  ])
+# ---

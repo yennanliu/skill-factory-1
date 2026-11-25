@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import shutil
 import subprocess
 from pathlib import Path
@@ -19,6 +20,8 @@ from skill_factory.lint.output import as_github, as_json, as_text
 from skill_factory.market import BuildError, build, check, release
 from skill_factory.paths import claude_version_pin, repo_root, sf_home
 from skill_factory.spec import SkillError, discover, load_skill
+from skill_factory.telemetry import otel as otel_proc
+from skill_factory.telemetry.collector import DEFAULT_PORT
 
 app = typer.Typer(
     name="sf",
@@ -28,6 +31,10 @@ app = typer.Typer(
 )
 spec_app = typer.Typer(help="Work with skills/<name>/spec.yaml.", no_args_is_help=True)
 app.add_typer(spec_app, name="spec")
+otel_app = typer.Typer(
+    help="Local OpenTelemetry collector (http/json, 127.0.0.1).", no_args_is_help=True
+)
+app.add_typer(otel_app, name="otel")
 console = Console()
 err = Console(stderr=True)
 
@@ -208,6 +215,120 @@ def lint_cmd(
         print(out)
     if report.errors or (strict and report.warnings):
         raise typer.Exit(1)
+
+
+def _otel_dir() -> Path:
+    return sf_home() / "otel"
+
+
+@otel_app.command("up")
+def otel_up(port: Annotated[int, typer.Option(help="Port to listen on.")] = DEFAULT_PORT) -> None:
+    """Start the collector in the background."""
+    try:
+        pid = otel_proc.up(_otel_dir(), port)
+    except RuntimeError as e:
+        err.print(f"[red]error:[/] {e}")
+        raise typer.Exit(1) from e
+    console.print(f"collector running (pid {pid}) on http://127.0.0.1:{port} -> {_otel_dir()}")
+    console.print('next: eval "$(uv run sf otel env)" in the shell you start claude from')
+
+
+@otel_app.command("down")
+def otel_down() -> None:
+    """Stop the background collector."""
+    console.print("stopped" if otel_proc.down(_otel_dir()) else "not running")
+
+
+@otel_app.command("status")
+def otel_status(
+    port: Annotated[int | None, typer.Option(help="Port (default: the running one).")] = None,
+) -> None:
+    """Show whether the collector is up and how much it has recorded."""
+    port = port or otel_proc.stored_port(_otel_dir())
+    pid = otel_proc.running_pid(_otel_dir())
+    ok = otel_proc.healthy(port)
+    console.print(
+        f"process: {f'pid {pid}' if pid else 'not running'}; health: {'ok' if ok else 'down'}"
+    )
+    for name in ("logs", "metrics", "traces"):
+        f = _otel_dir() / f"{name}.jsonl"
+        if f.is_file():
+            console.print(f"  {f}: {f.stat().st_size:,} bytes")
+    if not ok:
+        raise typer.Exit(1)
+
+
+@otel_app.command("env")
+def otel_env_cmd(
+    port: Annotated[int | None, typer.Option(help="Port (default: the running one).")] = None,
+) -> None:
+    """Print `export` lines that point Claude Code at the collector."""
+    for k, v in otel_proc.otel_env(port or otel_proc.stored_port(_otel_dir())).items():
+        print(f"export {k}={v}")
+
+
+@otel_app.command("serve")
+def otel_serve(
+    port: Annotated[int, typer.Option(help="Port to listen on.")] = DEFAULT_PORT,
+) -> None:
+    """Run the collector in the foreground (Ctrl-C to stop)."""
+    from skill_factory.telemetry.collector import serve
+
+    srv = serve(_otel_dir(), port)
+    console.print(f"listening on http://127.0.0.1:{port} -> {_otel_dir()}")
+    with contextlib.suppress(KeyboardInterrupt):
+        srv.serve_forever()
+
+
+@app.command("stats")
+def stats_cmd(
+    since: Annotated[str, typer.Option(help="Window: 30m, 12h, 1d, 2w.")] = "1d",
+    events_file: Annotated[
+        Path | None, typer.Option(help="Hook events (default $SF_HOME/telemetry/events.jsonl).")
+    ] = None,
+    otel_logs: Annotated[
+        Path | None, typer.Option(help="OTel logs (default $SF_HOME/otel/logs.jsonl).")
+    ] = None,
+) -> None:
+    """Per-skill calls, trigger mix, cost per call and tool errors."""
+    from skill_factory.telemetry.ingest import connect
+    from skill_factory.telemetry.stats import parse_since, skill_stats
+
+    try:
+        start = parse_since(since)
+    except ValueError as e:
+        err.print(f"[red]error:[/] {e}")
+        raise typer.Exit(2) from e
+    ev = events_file or sf_home() / "telemetry" / "events.jsonl"
+    ol = otel_logs or _otel_dir() / "logs.jsonl"
+    rows = skill_stats(connect(ev, ol), start)
+    if not rows:
+        console.print(f"no skill activity since {start:%Y-%m-%d %H:%M} UTC")
+        console.print(f"(hook events: {ev}; otel logs: {ol})")
+        return
+    table = Table(
+        "skill",
+        "calls",
+        "model/user",
+        "sessions",
+        "cost total",
+        "cost/call",
+        "tool errors",
+        "calls from",
+        title=f"since {start:%Y-%m-%d %H:%M} UTC",
+    )
+    for r in rows:
+        table.add_row(
+            r.skill,
+            str(r.calls),
+            f"{r.model_calls}/{r.user_calls}",
+            str(r.sessions),
+            f"${r.cost_usd:.4f}" if r.cost_usd is not None else "-",
+            f"${r.cost_per_call:.4f}" if r.cost_per_call is not None else "-",
+            str(r.errors),
+            r.source,
+        )
+    console.print(table)
 
 
 @app.callback()

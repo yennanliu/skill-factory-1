@@ -80,12 +80,16 @@ def _copy_skill(skill: SkillDir, dest: Path) -> None:
 def _plugin_readme(
     name: str, description: str, repo: str, skills: list[SkillDir], market: str = ""
 ) -> str:
-    rows = "\n".join(f"| `{s.name}` | {s.spec.version} | {s.spec.goal.strip()} |" for s in skills)
-    return (
-        f"# {name}\n\n{description}\n\n<!-- {GENERATED_NOTE} -->\n\n"
+    install = (
         f"## Install\n\n```\n/plugin install {name} --marketplace {repo}\n```\n\n"
         f"or, once the marketplace is added (`/plugin marketplace add {repo}`):\n\n"
-        f"```\n/plugin install {name}@{market}\n```\n\n"
+        f"```\n/plugin install {name}@{market}\n```\n"
+    )
+    if not skills:
+        return f"# {name}\n\n{description}\n\n<!-- {GENERATED_NOTE} -->\n\n{install}"
+    rows = "\n".join(f"| `{s.name}` | {s.spec.version} | {s.spec.goal.strip()} |" for s in skills)
+    return (
+        f"# {name}\n\n{description}\n\n<!-- {GENERATED_NOTE} -->\n\n{install}\n"
         f"## Skills\n\n| Skill | Version | Goal |\n|---|---|---|\n{rows}\n"
     )
 
@@ -112,12 +116,23 @@ def _render(root: Path, out: Path) -> BuildResult:
     for pname in sorted(market.plugins):
         pdef = market.plugins[pname]
         members = sorted(by_plugin.get(pname, []), key=lambda s: s.name)
-        if not members:
-            result.warnings.append(f"plugin {pname!r} has no skills; skipped")
+        if not members and not pdef.assets:
+            result.warnings.append(f"plugin {pname!r} has no skills or assets; skipped")
             continue
         pdir = out / "plugins" / pname
         for s in members:
             _copy_skill(s, pdir / "skills" / s.name)
+        taken = {"skills", ".claude-plugin", "README.md"}
+        for asset in pdef.assets:
+            src = (root / asset).resolve()
+            if not src.is_relative_to(root.resolve()):
+                raise BuildError([f"plugin {pname!r}: asset {asset!r} is outside the repo"])
+            if not src.is_dir():
+                raise BuildError([f"plugin {pname!r}: asset dir {asset!r} does not exist"])
+            if src.name in taken:
+                raise BuildError([f"plugin {pname!r}: asset {asset!r} collides with {src.name!r}"])
+            taken.add(src.name)
+            shutil.copytree(src, pdir / src.name, ignore=shutil.ignore_patterns(*EXCLUDE))
         _write_json(
             pdir / ".claude-plugin" / "plugin.json",
             {
