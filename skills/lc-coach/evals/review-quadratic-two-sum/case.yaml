@@ -15,9 +15,10 @@ execution:
   max_turns: 12
   allowed_tools: [Read, Glob, Grep, Skill]
 graders:
-  - name: six-point-verdict
+  - name: six-point-verdict  # an actual verdict, not just a mention of the scale; H included
     type: regex
-    pattern: '\b(SH|LH|LNH|NH|SNH|Strong Hire|Lean Hire|Lean No Hire|No Hire|Strong No Hire)\b'
+    pattern: 'verdict\W{0,5}\s*(SH|H|LH|LNH|NH|SNH|Strong Hire|Hire|Lean Hire|Lean No Hire|No Hire|Strong No Hire)\b'
+    flags: i
   - name: names-the-blocking-line
     type: llm
     criteria: >-

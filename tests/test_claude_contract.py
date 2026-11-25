@@ -60,7 +60,9 @@ def test_common_hook_fields(case: str) -> None:
 def test_failing_tool_fires_post_tool_use_failure(case: str) -> None:
     (fail,) = by_event(case, "PostToolUseFailure")
     assert fail["tool_name"] == "Bash"
-    assert fail["error"].startswith("Exit code 1")
+    # GNU ls exits 2, BSD ls exits 1: assert a non-zero code, not a platform's value
+    code = fail["error"].split("\n", 1)[0].removeprefix("Exit code ")
+    assert code.isdigit() and int(code) != 0, fail["error"]
     failed_ids = {fail["tool_use_id"]}
     ok_ids = {h["tool_use_id"] for h in by_event(case, "PostToolUse")}
     assert failed_ids.isdisjoint(ok_ids)
@@ -91,3 +93,20 @@ def test_stream_shows_skill_tool_use_only_when_model_triggered() -> None:
 
     assert tool_names("model_triggered")[0] == "Skill"
     assert "Skill" not in tool_names("user_triggered")
+
+
+def test_permission_block_fires_no_post_tool_hook() -> None:
+    events = {h["hook_event_name"] for h in hooks("permission_blocked")}
+    assert "PreToolUse" in events
+    assert "PostToolUse" not in events and "PostToolUseFailure" not in events
+    denied = [
+        e
+        for e in stream("permission_blocked")
+        if e["type"] == "system" and e.get("subtype") == "permission_denied"
+    ]
+    assert denied and denied[0]["tool_name"] == "Bash"
+
+
+def test_tool_ids_are_consistent_after_sanitizing() -> None:
+    raw = (FIXTURES / "model_triggered" / "stream.jsonl").read_text()
+    assert "toolu_" not in raw  # ids in values AND dict keys go through the same mapping

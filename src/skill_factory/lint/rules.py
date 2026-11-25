@@ -62,8 +62,13 @@ def finding(r: Rule, skill: SkillDir, message: str, hint: str = "", **kw: object
 
 # --- helpers -----------------------------------------------------------------------------
 
-FENCE_RE = re.compile(r"^```.*?^```", re.S | re.M)
-NUMBERED_RE = re.compile(r"^(?:#{2,4}\s+(?:Step\s+)?\d+[.)]|\s{0,3}\d+[.)]\s)", re.M)
+# Fences may be indented (a code block inside a list item) and use ``` or ~~~.
+FENCE_RE = re.compile(r"^[ \t]{0,4}(```|~~~).*?^[ \t]{0,4}\1", re.S | re.M)
+NUMBERED_RE = re.compile(
+    r"^(?:#{2,4}\s+(?:Step\s+\d+(?:[.):]|\s+[-\u2013\u2014]|\s*$)|\d+[.)])|\s{0,3}\d+[.)]\s)",
+    re.M | re.I,
+)
+HEADING_RE = re.compile(r"^#{1,6}\s", re.M)
 VERIFY_RE = re.compile(
     r"\b(verify|verif|confirm|check|ensure|assert|make sure|expect|smoke[- ]test|validate)",
     re.I,
@@ -90,6 +95,15 @@ SECRET_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
 TEXT_SUFFIXES = {".md", ".txt", ".py", ".sh", ".js", ".ts", ".json", ".yaml", ".yml", ".toml"}
 
 
+CJK_RE = re.compile(r"[\u3000-\u9fff\uac00-\ud7af\uf900-\ufaff\uff00-\uffef]")
+
+
+def approx_tokens_of(text: str) -> int:
+    """~4 chars/token for Latin text, ~1 token per CJK character."""
+    cjk = len(CJK_RE.findall(text))
+    return cjk + (len(text) - cjk) // 4
+
+
 def _strip_fences(body: str) -> str:
     return FENCE_RE.sub("", body)
 
@@ -111,7 +125,16 @@ def _steps(body: str) -> list[str]:
     starts = [m.start() for m in NUMBERED_RE.finditer(prose)]
     if not starts:
         return []
-    return [prose[a:b] for a, b in zip(starts, [*starts[1:], len(prose)], strict=True)]
+    out = []
+    for a, b in zip(starts, [*starts[1:], len(prose)], strict=True):
+        # A step ends at the next heading that isn't a step (e.g. "## Recovery"), so later
+        # sections can't lend their words to the last step.
+        for h in HEADING_RE.finditer(prose, a + 1, b):
+            if not NUMBERED_RE.match(prose, h.start()):
+                b = h.start()
+                break
+        out.append(prose[a:b])
+    return out
 
 
 # --- rules -------------------------------------------------------------------------------
@@ -133,7 +156,7 @@ def _description_when(skill: SkillDir, r: Rule) -> Iterator[Finding]:
 @rule("SF002", "description-length", "warning", "description fits the ~100-token always-on budget")
 def _description_length(skill: SkillDir, r: Rule) -> Iterator[Finding]:
     desc = str(skill.frontmatter.get("description", ""))
-    approx_tokens = len(desc) // 4
+    approx_tokens = approx_tokens_of(desc)
     if approx_tokens > 100:
         yield finding(
             r,
@@ -276,7 +299,8 @@ def _spec_hash(skill: SkillDir, r: Rule) -> Iterator[Finding]:
             r,
             skill,
             "spec.yaml changed since SKILL.md was compiled",
-            "re-run `sf compile` (or update the marker after reviewing by hand)",
+            "recompile SKILL.md from the spec (`sf compile <skill> --apply`), or update the "
+            "marker after reviewing by hand",
         )
 
 

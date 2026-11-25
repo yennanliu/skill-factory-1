@@ -17,7 +17,8 @@ def repo_root(start: Path | None = None) -> Path:
 
 def sf_home() -> Path:
     """Per-user state dir (telemetry, OTel files, papercuts). Never inside the repo."""
-    return Path(os.environ.get("SF_HOME", Path.home() / ".skill-factory")).expanduser()
+    # `or`, not a get() default: an empty SF_HOME must not mean "the current directory".
+    return Path(os.environ.get("SF_HOME") or Path.home() / ".skill-factory").expanduser()
 
 
 def claude_version_pin(root: Path) -> str | None:
