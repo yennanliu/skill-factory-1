@@ -422,7 +422,10 @@ def eval_cmd(
 
 @app.command("report")
 def report_cmd(
-    out: Annotated[Path, typer.Option(help="Output HTML file.")] = Path("report/index.html"),
+    out: Annotated[
+        Path | None,
+        typer.Option(help="Output HTML file (default <repo>/report/index.html; relative = cwd)."),
+    ] = None,
     since: Annotated[str, typer.Option(help="Telemetry window: 12h, 7d, 4w.")] = "30d",
     days: Annotated[int, typer.Option(help="Days in the per-skill sparkline.")] = 14,
     events_file: Annotated[Path | None, typer.Option(help="Hook events file.")] = None,
@@ -459,8 +462,12 @@ def report_cmd(
         since=start,
         generated=now,
         sources={"events": str(ev), "otel": str(ol), "runs": str(root / "runs")},
+        days=days,
     )
-    target = out if out.is_absolute() else root / out
+    if out is None:
+        target = root / "report" / "index.html"
+    else:
+        target = out if out.is_absolute() else Path.cwd() / out
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(html)
     console.print(f"wrote {target} ({len(rows)} skills, {len(others)} other)")
@@ -485,12 +492,16 @@ def statusline_install(
     """Copy the status-line script to $SF_HOME/bin and set statusLine in settings (shows a diff)."""
     import json
 
-    from skill_factory.statusline import diff, install_script, plan_settings
+    from skill_factory.statusline import SettingsError, diff, install_script, plan_settings
 
     root = _root()
     settings = settings or Path.home() / ".claude" / "settings.json"
     script = sf_home() / "bin" / "sf_statusline.py"
-    old, new, _ = plan_settings(settings, script)
+    try:
+        old, new, _ = plan_settings(settings, script)
+    except SettingsError as e:
+        err.print(f"[red]error:[/] {escape(str(e))}")
+        raise typer.Exit(2) from e
     if old == new:
         console.print("statusLine already set")
     else:
@@ -503,7 +514,13 @@ def statusline_install(
         settings.write_text(new)
     if budget is not None:
         cfg_path = sf_home() / "config.json"
-        cfg = json.loads(cfg_path.read_text()) if cfg_path.is_file() else {}
+        try:
+            cfg = json.loads(cfg_path.read_text()) if cfg_path.is_file() else {}
+        except ValueError:
+            cfg = None
+        if not isinstance(cfg, dict):
+            err.print(f"[red]error:[/] {cfg_path} is not a JSON object; fix or remove it")
+            raise typer.Exit(2)
         cfg["session_budget_usd"] = budget
         cfg_path.write_text(json.dumps(cfg, indent=2) + "\n")
     console.print(f"installed {script}; restart Claude Code to see it")
