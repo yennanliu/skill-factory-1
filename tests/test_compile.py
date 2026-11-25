@@ -152,7 +152,7 @@ def test_case_yaml_fixes_never_graders_and_regex_flags() -> None:
     ("pattern", "flags", "expected"),
     [
         ("(?i)abc", "", ("abc", "i")),
-        ("(?ix)a b", "g", ("a b", "gi")),
+        ("(?ix)a b", "g", ("ab", "gi")),
         ("abc", "", ("abc", "")),
         ("a(?i)b", "", ("a(?i)b", "")),
     ],
@@ -162,6 +162,8 @@ def test_js_regex(pattern: str, flags: str, expected: tuple[str, str]) -> None:
 
 
 def test_render_keeps_existing_allowed_tools(repo: Path) -> None:
+    spec = repo / "skills" / "alpha" / "spec.yaml"
+    spec.write_text(spec.read_text() + "tools:\n  required: [Read, Bash]\n")
     md = repo / "skills" / "alpha" / "SKILL.md"
     md.write_text(md.read_text().replace("description:", "allowed-tools: Read, Bash\ndescription:"))
     out = render_skill_md(load_skill(repo / "skills" / "alpha"), "d.\n  Use when x.", "# A\n")
@@ -245,3 +247,78 @@ def test_get_backend() -> None:
     assert backend_mod.get_backend("api").name == "api"
     with pytest.raises(ValueError, match="unknown backend"):
         backend_mod.get_backend("nope")
+
+
+def test_release_does_not_make_a_compiled_skill_stale(repo: Path) -> None:
+    from skill_factory.market import release
+
+    skill = load_skill(repo / "skills" / "alpha")
+    write_outputs(skill, compile_skill(repo, skill, FakeBackend([answer()]), "m"), apply=True)
+    assert stale_skills(repo) == []
+    release(repo, "alpha", "patch")
+    assert stale_skills(repo) == []  # only the version changed
+    spec = repo / "skills" / "alpha" / "spec.yaml"
+    spec.write_text(spec.read_text() + "# just a comment\n")
+    assert stale_skills(repo) == []  # comments don't count either
+    spec.write_text(spec.read_text() + "outputs: [x]\n")
+    assert stale_skills(repo) != []
+
+
+def test_compile_lints_with_evals_so_sf013_can_pass(repo: Path) -> None:
+    spec = repo / "skills" / "alpha" / "spec.yaml"
+    spec.write_text(spec.read_text().replace("side_effects", "x") + "side_effects: external\n")
+    (repo / "skills" / "alpha" / "evals" / "m").mkdir(parents=True)
+    (repo / "skills" / "alpha" / "evals" / "m" / "case.yaml").write_text("mocks: {}\n")
+    result = compile_skill(
+        repo, load_skill(repo / "skills" / "alpha"), FakeBackend([answer()]), "m"
+    )
+    assert result.findings == [] and result.attempts == 1
+
+
+def test_render_keeps_other_frontmatter_keys(repo: Path) -> None:
+    md = repo / "skills" / "alpha" / "SKILL.md"
+    md.write_text(md.read_text().replace("description:", "argument-hint: <n>\ndescription:"))
+    out = render_skill_md(load_skill(repo / "skills" / "alpha"), "d. Use when x.", "# A\n")
+    assert "argument-hint: <n>" in out and "description: d. Use when x." in out
+
+
+def test_exemplars_skip_uncompiled_stubs(repo: Path) -> None:
+    new_skill(repo, "aaa-stub", "core", None, None, None)
+    md = repo / "skills" / "beta" / "SKILL.md"
+    md.write_text(md.read_text().replace("1. Step one.", "1. Step one.\n2. Step two."))
+    names = [s.name for s in pick_exemplars(repo, "alpha")]
+    assert "aaa-stub" not in names
+
+
+def test_new_skill_quotes_values(repo: Path) -> None:
+    path = new_skill(repo, "quoted", "core", None, "@jim", "line one\nline two: yes")
+    s = load_skill(path)
+    assert s.spec.owner == "@jim" and s.spec.goal == "line one line two: yes"
+
+
+def test_draft_case_lists_spec_tools(repo: Path) -> None:
+    from ruamel.yaml import YAML
+
+    doc = YAML(typ="safe").load(case_yaml({**CASE, "name": "x"}, ["Bash", "Write"]))
+    assert doc["execution"]["allowed_tools"] == ["Read", "Glob", "Grep", "Bash", "Write", "Skill"]
+
+
+def test_backend_timeout_and_missing_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
+    import anthropic
+
+    be = ClaudeCliBackend(timeout_seconds=1)
+    monkeypatch.setattr(backend_mod.shutil, "which", lambda _x: "/bin/claude")
+
+    def slow(*a: Any, **k: Any) -> Any:
+        raise subprocess.TimeoutExpired(a[0], 1)
+
+    monkeypatch.setattr(backend_mod.subprocess, "run", slow)
+    with pytest.raises(BackendError, match="timed out"):
+        be.generate("s", "u", {}, "m")
+
+    def no_creds(*a: Any, **k: Any) -> Any:
+        raise anthropic.AnthropicError("no credentials")
+
+    monkeypatch.setattr(anthropic, "Anthropic", no_creds)
+    with pytest.raises(BackendError, match="backend claude-cli"):
+        backend_mod.ApiBackend().generate("s", "u", {}, "m")

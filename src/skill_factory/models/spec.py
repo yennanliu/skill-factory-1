@@ -39,6 +39,9 @@ class EvalPolicy(_Strict):
     min_pass_rate: float = Field(0.7, ge=0, le=1)
     max_pass_rate: float = Field(0.95, ge=0, le=1)
     runs: int = Field(5, gt=0)
+    # Extra tool grants for evals, e.g. Write/Edit for a read-only skill so a "never edits"
+    # grader can actually fail. Not granted to the skill itself.
+    allow_tools: list[str] = []
 
     @model_validator(mode="after")
     def _ordered(self) -> EvalPolicy:

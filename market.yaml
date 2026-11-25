@@ -6,7 +6,7 @@ repository: yennanliu/skill-factory-1  # <owner>/<repo> used in install instruct
 description: Spec-first, evaluated and measured agent skills.
 plugins:
   sf-platform:
-    version: 0.1.0
+    version: 0.1.2
     description: Always-on platform skills and telemetry hooks.
     assets: [hooks]  # hooks/hooks.json + hooks/sf_telemetry.py
   sf-core:

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import hashlib
+import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -44,15 +46,21 @@ class SkillDir:
         return self.path / "spec.yaml"
 
 
+FRONTMATTER_RE = re.compile(r"\A---[ \t]*\n(.*?)^---[ \t]*$\n?", re.S | re.M)
+
+
 def parse_frontmatter(text: str) -> tuple[dict[str, Any], str]:
-    """Split a SKILL.md into (frontmatter dict, body). Missing frontmatter -> ({}, text)."""
-    if not text.startswith("---\n"):
+    """Split a SKILL.md into (frontmatter dict, body). Missing frontmatter -> ({}, text).
+
+    Handles CRLF line endings and an empty block (`---\\n---`); the closing `---` must be a
+    whole line.
+    """
+    text = text.replace("\r\n", "\n")
+    m = FRONTMATTER_RE.match(text)
+    if not m:
         return {}, text
-    end = text.find("\n---", 4)
-    if end == -1:
-        return {}, text
-    raw = text[4:end]
-    body = text[end + 4 :].lstrip("\n")
+    raw = m.group(1)
+    body = text[m.end() :].lstrip("\n")
     data = YAML(typ="safe").load(raw) or {}
     if not isinstance(data, dict):
         raise ValueError("frontmatter is not a mapping")
@@ -60,8 +68,40 @@ def parse_frontmatter(text: str) -> tuple[dict[str, Any], str]:
 
 
 def spec_sha256(spec_path: Path) -> str:
-    """Hash of the spec file bytes; recorded in built SKILL.md to detect drift."""
-    return hashlib.sha256(spec_path.read_bytes()).hexdigest()
+    """Hash of the spec's *content*, recorded in SKILL.md to detect drift.
+
+    `version` and comments/formatting are excluded, so `sf release` (which only bumps the
+    version) doesn't make a compiled SKILL.md look stale.
+    """
+    try:
+        data = YAML(typ="safe").load(spec_path.read_text(encoding="utf-8")) or {}
+    except YAMLError:
+        return hashlib.sha256(spec_path.read_bytes()).hexdigest()
+    if isinstance(data, dict):
+        data = {k: v for k, v in data.items() if k != "version"}
+    canonical = json.dumps(data, sort_keys=True, ensure_ascii=False, default=str)
+    return hashlib.sha256(canonical.encode()).hexdigest()
+
+
+def _tool_names(value: Any) -> set[str]:
+    items = value if isinstance(value, list) else str(value or "").split(",")
+    return {str(t).strip() for t in items if str(t).strip()}
+
+
+def tool_problems(spec: Spec, fm: dict[str, Any]) -> list[str]:
+    """spec.yaml is the source of truth: SKILL.md `allowed-tools` must agree with tools.*."""
+    if "allowed-tools" not in fm:
+        return []
+    allowed = _tool_names(fm["allowed-tools"])
+    required, forbidden = set(spec.tools.required), set(spec.tools.forbidden)
+    out = []
+    if bad := sorted(allowed & forbidden):
+        out.append(f"allowed-tools grants forbidden tools: {', '.join(bad)}")
+    if missing := sorted(required - allowed):
+        out.append(f"allowed-tools lacks required tools: {', '.join(missing)}")
+    if extra := sorted(allowed - required):
+        out.append(f"allowed-tools grants tools the spec doesn't list: {', '.join(extra)}")
+    return out
 
 
 def load_skill(path: Path) -> SkillDir:
@@ -84,7 +124,7 @@ def load_skill(path: Path) -> SkillDir:
         raise SkillError(name, msgs) from e
 
     try:
-        fm, body = parse_frontmatter(skill_md.read_text())
+        fm, body = parse_frontmatter(skill_md.read_text(encoding="utf-8"))
     except (YAMLError, ValueError) as e:
         raise SkillError(name, [f"SKILL.md frontmatter: {e}"]) from e
 
@@ -97,6 +137,7 @@ def load_skill(path: Path) -> SkillDir:
             problems.append(f"SKILL.md name {fm.get('name')!r} != spec.name {spec.name!r}")
         if not fm.get("description"):
             problems.append("SKILL.md frontmatter has no description")
+    problems += tool_problems(spec, fm)
     for script in spec.tools.scripts:
         if not (path / script).is_file():
             problems.append(f"tools.scripts: {script} does not exist")
@@ -107,6 +148,8 @@ def load_skill(path: Path) -> SkillDir:
 
 
 def discover(root: Path) -> list[Path]:
-    """All skill directories under `<root>/skills/`, sorted by name."""
+    """All skill directories under `<root>/skills/`, sorted by name ([] if there is none)."""
     base = root / "skills"
+    if not base.is_dir():
+        return []
     return sorted(p for p in base.iterdir() if p.is_dir() and not p.name.startswith("."))

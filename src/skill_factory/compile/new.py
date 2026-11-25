@@ -2,19 +2,23 @@
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
+from pydantic import ValidationError
+from ruamel.yaml import YAML
+from ruamel.yaml.error import YAMLError
+
 from skill_factory import yamlio
-from skill_factory.models.spec import KEBAB_RE, plugin_for
+from skill_factory.models.spec import KEBAB_RE, Spec, plugin_for
 
 SPEC_TEMPLATE = """\
 name: {name}
 version: 0.1.0
 tier: {tier}
 {domain_line}owner: {owner}
-goal: >-
-  {goal}
+goal: {goal}
 triggers:  # phrases a user would say; they become the description
   - "TODO: a request that should trigger this skill"
 outputs:
@@ -84,21 +88,28 @@ def new_skill(
 
     market_path = root / "market.yaml"
     market = yamlio.load(market_path)
+    # Values are JSON-quoted (valid YAML scalars) so "@jim" or a multi-line goal can't break the
+    # file; the rendered spec is validated before anything is written.
+    spec_text = SPEC_TEMPLATE.format(
+        name=name,
+        tier=tier,
+        owner=json.dumps(owner or str(market["owner"])),
+        domain_line=f"domain: {domain}\n" if domain else "",
+        goal=json.dumps(
+            " ".join((goal or "TODO: one sentence on what this skill achieves.").split())
+        ),
+    )
+    try:
+        Spec.model_validate(YAML(typ="safe").load(spec_text))
+    except (YAMLError, ValidationError) as e:
+        raise NewSkillError(f"the generated spec.yaml would be invalid: {e}") from e
     plugin = plugin_for(tier, domain)  # type: ignore[arg-type]
     if plugin not in market["plugins"]:
         market["plugins"][plugin] = {"version": "0.1.0", "description": f"{domain} skills."}
         yamlio.dump(market, market_path)
 
     (path / "evals" / "smoke").mkdir(parents=True)
-    (path / "spec.yaml").write_text(
-        SPEC_TEMPLATE.format(
-            name=name,
-            tier=tier,
-            owner=owner or market["owner"],
-            domain_line=f"domain: {domain}\n" if domain else "",
-            goal=goal or "TODO: one sentence on what this skill achieves.",
-        )
-    )
+    (path / "spec.yaml").write_text(spec_text)
     (path / "SKILL.md").write_text(SKILL_STUB.format(name=name))
     (path / "evals" / "smoke" / "case.yaml").write_text(CASE_TEMPLATE)
     return path

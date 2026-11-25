@@ -9,7 +9,7 @@
   "session_id": "<UUID0>",
   "tool_input": {
     "command": "ls ./nonexistent-sf-probe",
-    "description": "List a nonexistent path (expected to fail)"
+    "description": "List nonexistent path (expected to fail)"
   },
   "tool_name": "Bash",
   "tool_use_id": "<TOOLU2>",
