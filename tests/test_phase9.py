@@ -156,7 +156,8 @@ def test_repo_agents_and_workflows_are_valid() -> None:
         doc = YAML(typ="safe").load(wf.read_text())
         assert doc["jobs"], wf.name
         text = wf.read_text()
-        assert "uv sync --locked" in text  # CI never resolves dependencies fresh
+        if "uv run" in text:  # any workflow that runs Python never resolves dependencies fresh
+            assert "uv sync --locked" in text, wf.name
 
 
 def test_agent_timeout_and_os_errors_still_write_a_record(
