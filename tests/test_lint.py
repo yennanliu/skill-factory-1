@@ -225,9 +225,10 @@ def test_sf006_accepts_indented_fences(good: Path) -> None:
     assert rules_hit(good) == set()
 
 
-def test_sf011_ignores_prose_mentions(good: Path) -> None:
+def test_prose_mentions_are_a_warning_not_an_error(good: Path) -> None:
     set_md(good, GOOD_MD + "\nFor example `scripts/build.sh` of another skill may fail.\n")
-    assert rules_hit(good) == set()
+    findings = lint_skill(good).findings
+    assert [(f.rule, f.severity) for f in findings] == [("SF014", "warning")]
 
 
 def test_sf006_accepts_indented_and_tilde_fences(good: Path) -> None:

@@ -299,3 +299,16 @@ def test_judge_calibrate_vote_and_single_class_checks(repo, monkeypatch) -> None
     monkeypatch.setattr(backend_mod, "get_backend", lambda _n: Judge({"r1": ["PASS"] * 3}))
     out = runner.invoke(app, ["judge", "calibrate", "alpha"])
     assert out.exit_code == 3 and "same class" in out.output
+
+
+def test_search_reports_a_bad_repo(repo, monkeypatch, tmp_path) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.chdir(repo)
+    (repo / "market.yaml").unlink()
+    out = runner.invoke(app, ["search", "alpha"])
+    assert out.exit_code == 2 and "not a skill-factory repo" in out.output
+    home = tmp_path / "h"
+    home.mkdir()
+    (home / "config.json").write_text("{bad")
+    monkeypatch.setenv("SF_HOME", str(home))
+    monkeypatch.chdir(tmp_path)
+    assert runner.invoke(app, ["search", "alpha"]).exit_code == 2

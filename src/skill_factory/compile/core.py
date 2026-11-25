@@ -209,11 +209,14 @@ def case_yaml(case: dict[str, Any], tools: list[str] | None = None) -> str:
     graders = []
     for g in case["graders"]:
         entry = {k: v for k, v in g.items() if v not in (None, "")}
+        if entry.get("type") == "regex" and entry.get("max") == 0:
+            entry["match"] = "not_contains"  # "must never appear", in the harness's terms
         if entry.get("type") == "file_exists" and entry.get("max") == 0:
             entry["exists"] = False  # "no such file may be created", in the harness's terms
         # The harness rejects keys a grader type doesn't take (e.g. max on an llm grader).
-        allowed = GRADER_KEYS.get(str(entry.get("type")), set())
-        entry = {k: v for k, v in entry.items() if k in allowed | {"name", "type"}}
+        allowed = GRADER_KEYS.get(str(entry.get("type")))
+        if allowed is not None:  # unknown types (tool_order, baseline) are passed through
+            entry = {k: v for k, v in entry.items() if k in allowed | {"name", "type"}}
         if entry.get("type") == "regex" and "pattern" in entry:
             entry["pattern"], entry["flags"] = js_regex(entry["pattern"], entry.get("flags", ""))
             if not entry["flags"]:

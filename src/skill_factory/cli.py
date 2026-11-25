@@ -938,9 +938,15 @@ def _search_root(repo: Path | None) -> Path:
         return repo
     if os.environ.get("SF_REPO"):
         return Path(os.environ["SF_REPO"]).expanduser()
-    cfg = sf_home() / "config.json"
-    if cfg.is_file() and _json.loads(cfg.read_text()).get("repo"):
-        return Path(_json.loads(cfg.read_text())["repo"]).expanduser()
+    cfg_path = sf_home() / "config.json"
+    if cfg_path.is_file():
+        try:
+            cfg = _json.loads(cfg_path.read_text())
+        except ValueError as e:
+            err.print(f"[red]error:[/] {cfg_path} is not valid JSON: {escape(str(e))}")
+            raise typer.Exit(2) from e
+        if isinstance(cfg, dict) and cfg.get("repo"):
+            return Path(cfg["repo"]).expanduser()
     return _root()
 
 
@@ -966,7 +972,15 @@ def search_cmd(
             skills.append(load_skill(p))
         except SkillError:
             continue
-    hits = search(query, skills, root / "runs", load_market(root).name, limit)
+    try:
+        market = load_market(root)
+    except BuildError as e:
+        err.print(
+            f"[red]error:[/] {escape(root.as_posix())} is not a skill-factory repo "
+            f"({escape('; '.join(e.problems))}); check --repo / SF_REPO"
+        )
+        raise typer.Exit(2) from e
+    hits = search(query, skills, root / "runs", market.name, limit)
     if as_json:
         print(_json.dumps([h.__dict__ for h in hits], indent=2))
         return

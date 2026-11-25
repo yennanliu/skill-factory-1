@@ -345,3 +345,24 @@ def test_backend_timeout_and_missing_credentials(monkeypatch: pytest.MonkeyPatch
     monkeypatch.setattr(anthropic, "Anthropic", no_creds)
     with pytest.raises(BackendError, match="backend claude-cli"):
         backend_mod.ApiBackend().generate("s", "u", {}, "m")
+
+
+def test_case_yaml_regex_never_and_unknown_types() -> None:
+    from ruamel.yaml import YAML
+
+    case = {
+        **CASE,
+        "name": "x",
+        "graders": [
+            {"name": "no-secret", "type": "regex", "pattern": "sk_live_", "max": 0},
+            {"name": "order", "type": "tool_order", "before": "Read", "after": "Write"},
+        ],
+    }
+    g = YAML(typ="safe").load(case_yaml(case))["graders"]
+    assert g[0] == {
+        "name": "no-secret",
+        "type": "regex",
+        "pattern": "sk_live_",
+        "match": "not_contains",
+    }
+    assert g[1]["before"] == "Read" and g[1]["after"] == "Write"

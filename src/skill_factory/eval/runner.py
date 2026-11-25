@@ -155,6 +155,11 @@ def run_eval(
     (out_dir / "claude-eval.log").write_text(log)
     # exit 0 = done, 2 = cost ceiling hit; 1 with a result file = some case files failed to load
     # (the loaded cases still ran), so parse what exists and surface the load errors.
+    load_errors = [ln.strip() for ln in proc.stderr.splitlines() if ln.strip().startswith("✗")]
+    # exit 1 is only acceptable when the harness says case files failed to load (with
+    # --threshold 0 it can't mean "below threshold"); anything else is a failed run.
+    if proc.returncode == 1 and not load_errors:
+        raise EvalError(f"claude plugin eval failed (exit 1); see {out_dir / 'claude-eval.log'}")
     if proc.returncode not in (0, 1, 2) or not raw_path.is_file():
         raise EvalError(
             f"claude plugin eval failed (exit {proc.returncode}); see {out_dir / 'claude-eval.log'}"
