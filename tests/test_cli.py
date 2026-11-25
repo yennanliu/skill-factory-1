@@ -126,3 +126,49 @@ def test_new_and_compile_cli(repo, monkeypatch) -> None:  # type: ignore[no-unty
     assert "SKILL.md.new" in out.output and "+description: Does fresh" in out.output
     assert runner.invoke(app, ["compile", "--check"]).exit_code == 0
     assert runner.invoke(app, ["compile"]).exit_code == 2
+
+
+def test_ablate_bench_judge_cli(repo, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    from skill_factory.compile import backend as backend_mod
+    from skill_factory.eval import runner as eval_runner
+    from tests.test_ablation import CAL, Judge, summary
+
+    monkeypatch.chdir(repo)
+    md = repo / "skills" / "alpha" / "SKILL.md"
+    md.write_text(md.read_text() + "\n## Extra\n\nmore\n")
+    calls = []
+
+    def fake_run_eval(skill, runs_dir, opts, *, skill_md=None, label=None):  # type: ignore[no-untyped-def]
+        calls.append((label, opts.model, opts.ablation))
+        out = runs_dir / skill.name / (label or "plain")
+        out.mkdir(parents=True, exist_ok=True)
+        rate = [True] * 8 + [False] * 2 if skill_md is None else [True] * 4 + [False] * 6
+        return summary(rate, 0.01 if opts.model == "cheap" else 0.05), out
+
+    monkeypatch.setattr(eval_runner, "run_eval", fake_run_eval)
+    ab = runner.invoke(app, ["ablate", "alpha"])
+    assert ab.exit_code == 0, ab.output
+    assert ("ablation-minus-extra", None, False) in calls and "keep section" in ab.output
+    assert list((repo / "runs" / "alpha").glob("*-ablation.json"))
+    assert runner.invoke(app, ["ablate", "alpha", "--section", "Nope"]).exit_code == 2
+
+    b = runner.invoke(app, ["bench", "alpha", "--models", "cheap,pricey", "--write"])
+    assert b.exit_code == 0, b.output
+    assert "recommended default: cheap" in b.output
+    from skill_factory.spec import load_skill
+
+    assert load_skill(repo / "skills" / "alpha").spec.targets.models[0] == "cheap"
+
+    cal = repo / "skills" / "alpha" / "evals" / "_calibration"
+    cal.mkdir(parents=True)
+    (cal / "seed.yaml").write_text(CAL)
+    monkeypatch.setattr(
+        backend_mod, "get_backend", lambda _n: Judge({"r1": ["PASS"] * 3, "r2": ["FAIL"] * 3})
+    )
+    ok = runner.invoke(app, ["judge", "calibrate", "alpha"])
+    assert ok.exit_code == 0, ok.output
+    assert "agreement 100%, Cohen's kappa 1.00" in ok.output
+    monkeypatch.setattr(
+        backend_mod, "get_backend", lambda _n: Judge({"r1": ["FAIL"] * 3, "r2": ["PASS"] * 3})
+    )
+    assert runner.invoke(app, ["judge", "calibrate", "alpha"]).exit_code == 1

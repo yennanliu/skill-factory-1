@@ -28,6 +28,9 @@ uv run sf compile my-skill   # spec.yaml -> SKILL.md.new + draft evals (Claude O
 uv run sf compile --check    # CI: fail if a compiled skill's spec changed since compiling
 uv run sf eval lc-add        # run a skill's evals (via `claude plugin eval`), with a no-skill baseline
 uv run sf eval --all --runs 3 -j 8   # every skill; results in runs/<skill>/<timestamp>/
+uv run sf ablate lc-add      # with/without the skill + one run per `##` section removed -> verdicts
+uv run sf bench lc-coach --models claude-haiku-5-5,claude-sonnet-5-5   # cheapest model that meets the bar
+uv run sf judge calibrate lc-coach   # LLM judge vs your labels in evals/_calibration/ (Cohen's kappa)
 uvx pre-commit install       # lint changed skills + check generated files on every commit
 scripts/probe_otel.sh        # re-capture OTel payloads after upgrading the CLI (~$0.01)
 uv run pytest                # unit + Claude Code contract tests
@@ -89,6 +92,19 @@ the spec's tool grants and a no-plugin **baseline arm**. It then reports, per ca
 a 95% Wilson interval, the baseline pass rate, the mean score, and how often the skill actually fired.
 Each skill's status is checked against its spec: `ok`, `below-min` (exit 1) or `too-easy` (above `max_pass_rate`).
 
+## Does the skill earn its tokens? / skill 值得它的 token 嗎？
+- **`sf ablate`** runs the full skill against a no-skill baseline. Verdict: `keep`, `optimize` (helps but costs
+  more than 1.5× the baseline), `shorten or retire` (a tie within ±10%) or `retire`. It then removes each `##`
+  section in turn: `delete section` if the pass rate doesn't drop, `keep section`, or `inconclusive` when the
+  suite is already above `max_pass_rate` (it can't show a drop). Delete one section at a time and re-ablate,
+  because two sections can cover for each other.
+- **`sf bench`** runs the suite on several models and recommends the cheapest one that meets `min_pass_rate`.
+  `--write` makes it the spec's default model.
+- **`sf judge calibrate`** grades author-labelled responses (`evals/_calibration/*.yaml`) with the judge, by
+  majority vote, and reports agreement and Cohen's κ. Below 0.6, don't trust that skill's LLM graders.
+- Clean room: every `claude plugin eval` run already gets a temporary home and config, an OS sandbox for shell
+  tools, and only the plugin under test, so a separate Docker image isn't needed.
+
 ## Layout / 結構
 | Path | What |
 |---|---|
@@ -103,8 +119,8 @@ Each skill's status is checked against its spec: `ok`, `below-min` (exit 1) or `
 | `docs/CLAUDE_CODE_CONTRACT.md` | Claude Code facts we depend on, confirmed by the probe |
 
 ## Status / 狀態
-Phase 6 (spec compiler, sf new) — see [the implementation plan](docs/IMPLEMENTATION_PLAN.en.md).
-階段 6（spec 編譯器、sf new）— 見[實作計畫](docs/IMPLEMENTATION_PLAN.zh-TW.md)。
+Phase 7 (ablation, model benchmark, judge calibration) — see [the implementation plan](docs/IMPLEMENTATION_PLAN.en.md).
+階段 7（消融、模型基準、judge 校準）— 見[實作計畫](docs/IMPLEMENTATION_PLAN.zh-TW.md)。
 
 ## References / 參考
 - Uber Engineering — [How Uber Evals 1 Million Agent Skill Invocations a Month](https://www.uber.com/us/en/blog/optimizing-ubers-agent-skills/) (2026-11-23)

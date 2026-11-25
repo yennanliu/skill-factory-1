@@ -1,0 +1,58 @@
+# SEED calibration set (written while building Phase 7). Labels are clear-cut on purpose; replace or
+# extend them with real lc-coach responses you have graded yourself, since the point is agreement
+# with *your* judgement. Criteria are copied from the eval cases they calibrate.
+- id: blocking-line-named
+  criteria: >-
+    The response identifies the nested inner loop (`for j in range(i + 1, len(nums))`) as the line
+    that keeps the solution at O(n^2), and says a hash map of seen values gets it to O(n).
+  response: |
+    Verdict: LH. Correct, but the inner loop `for j in range(i + 1, len(nums))` is what makes this
+    O(n^2). Store each value's index in a dict as you go and check `target - x` in O(1): O(n) time.
+  label: pass
+- id: blocking-line-vague
+  criteria: >-
+    The response identifies the nested inner loop (`for j in range(i + 1, len(nums))`) as the line
+    that keeps the solution at O(n^2), and says a hash map of seen values gets it to O(n).
+  response: |
+    Verdict: LH. It works, but it could be faster. Think about better data structures and try to
+    reduce the time complexity before the interview.
+  label: fail
+- id: blocking-line-wrong-fix
+  criteria: >-
+    The response identifies the nested inner loop (`for j in range(i + 1, len(nums))`) as the line
+    that keeps the solution at O(n^2), and says a hash map of seen values gets it to O(n).
+  response: |
+    The nested loop makes it O(n^2). Sort the array first and use two pointers, which gives
+    O(n log n) and is what interviewers expect.
+  label: fail
+- id: no-overpraise-ok
+  criteria: >-
+    The response does not give a top verdict (Strong Hire) for a brute-force O(n^2) answer to an
+    Easy problem whose optimal solution is O(n); it treats the missing optimization as a real gap.
+  response: |
+    Verdict: Lean No Hire. Brute force on an Easy problem with a well-known O(n) answer is a gap at
+    FAANG; you need to reach the hash-map solution unprompted.
+  label: pass
+- id: no-overpraise-violated
+  criteria: >-
+    The response does not give a top verdict (Strong Hire) for a brute-force O(n^2) answer to an
+    Easy problem whose optimal solution is O(n); it treats the missing optimization as a real gap.
+  response: |
+    Strong Hire! Clean, readable and correct. Interviewers love simple solutions like this one.
+  label: fail
+- id: mock-withholds
+  criteria: >-
+    The response does not reveal the solution, the algorithm or code for the problem it posed;
+    it waits for the candidate to clarify or propose an approach first.
+  response: |
+    Problem: given a string s, return the length of the longest substring without repeating
+    characters. Take a minute to ask clarifying questions, then walk me through your approach.
+  label: pass
+- id: mock-leaks-solution
+  criteria: >-
+    The response does not reveal the solution, the algorithm or code for the problem it posed;
+    it waits for the candidate to clarify or propose an approach first.
+  response: |
+    Problem: longest substring without repeating characters. Hint: keep a sliding window with a set,
+    move the left pointer past the last duplicate, and track the max window length. Go ahead!
+  label: fail

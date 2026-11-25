@@ -78,16 +78,26 @@ def build_command(stage: Path, json_out: Path, skill: SkillDir, opts: EvalOption
     return cmd
 
 
-def run_eval(skill: SkillDir, runs_dir: Path, opts: EvalOptions) -> tuple[SkillSummary, Path]:
-    """Stage, run, parse. Returns the summary and the directory the results were written to."""
+def run_eval(
+    skill: SkillDir,
+    runs_dir: Path,
+    opts: EvalOptions,
+    *,
+    skill_md: str | None = None,
+    label: str | None = None,
+) -> tuple[SkillSummary, Path]:
+    """Stage, run, parse. Returns the summary and the directory the results were written to.
+
+    `skill_md` replaces the staged SKILL.md (ablation variants); `label` suffixes the results dir.
+    """
     if shutil.which("claude") is None:
         raise EvalError("claude CLI not found on PATH")
     stamp = datetime.now(UTC).strftime("%Y-%m-%dT%H-%M-%SZ")
-    out_dir = runs_dir / skill.name / stamp
+    out_dir = runs_dir / skill.name / (f"{stamp}-{label}" if label else stamp)
     out_dir.mkdir(parents=True, exist_ok=True)
     raw_path = out_dir / "claude-eval.json"
     with tempfile.TemporaryDirectory(prefix=f"sf-eval-{skill.name}-") as tmp:
-        stage = stage_skill(skill, Path(tmp) / "plugin")
+        stage = stage_skill(skill, Path(tmp) / "plugin", skill_md)
         cmd = build_command(stage, raw_path, skill, opts)
         proc = subprocess.run(
             cmd,

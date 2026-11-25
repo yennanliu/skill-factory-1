@@ -565,6 +565,206 @@ def compile_cmd(
         raise typer.Exit(1)
 
 
+def _pct(v: float | None) -> str:
+    return "-" if v is None else f"{v:.0%}"
+
+
+@app.command("ablate")
+def ablate_cmd(
+    skill: Annotated[str, typer.Argument(help="Skill to ablate.")],
+    sections_: Annotated[
+        list[str] | None, typer.Option("--section", help="Only these section titles (repeatable).")
+    ] = None,
+    runs: Annotated[int | None, typer.Option(help="Runs per case per arm.")] = None,
+    model: Annotated[str | None, typer.Option(help="Model (default: spec).")] = None,
+    budget: Annotated[float, typer.Option(help="USD ceiling per arm.")] = 2.0,
+    jobs: Annotated[int, typer.Option("--jobs", "-j", help="Concurrent runs.")] = 4,
+) -> None:
+    """Measure what the skill and each `##` section contribute; keep/optimize/shorten/retire."""
+    import json as _json
+    from datetime import UTC, datetime
+
+    from skill_factory.eval import ablation
+    from skill_factory.eval.runner import EvalError, EvalOptions, run_eval
+    from skill_factory.report.data import approx_tokens
+
+    root = _root()
+    s = load_skill(root / "skills" / skill)
+    text = s.skill_md.read_text()
+    secs = ablation.sections(text)
+    if sections_:
+        secs = [x for x in secs if x.title in sections_]
+        missing = set(sections_) - {x.title for x in secs}
+        if missing:
+            err.print(f"[red]error:[/] no such section(s): {', '.join(sorted(missing))}")
+            raise typer.Exit(2)
+    opts = EvalOptions(runs=runs, model=model, budget_usd=budget, concurrency=jobs)
+    try:
+        console.print(f"full skill + no-skill baseline ({len(secs)} section variants follow)…")
+        full, _ = run_eval(s, root / "runs", opts, label="ablation-full")
+        variants = []
+        for sec in secs:
+            console.print(f"  without '{sec.title}'…")
+            variant_md = ablation.without_section(text, sec)
+            summary, _ = run_eval(
+                s,
+                root / "runs",
+                EvalOptions(**{**opts.__dict__, "ablation": False}),
+                skill_md=variant_md,
+                label=f"ablation-minus-{sec.slug}",
+            )
+            variants.append(
+                {
+                    "section": sec.title,
+                    "summary": summary.to_json(),
+                    "tokens_saved": approx_tokens(text) - approx_tokens(variant_md),
+                }
+            )
+    except EvalError as e:
+        err.print(f"[red]error:[/] {e}")
+        raise typer.Exit(1) from e
+    doc = ablation.report(full.to_json(), variants)
+    stamp = datetime.now(UTC).strftime("%Y-%m-%dT%H-%M-%SZ")
+    out = root / "runs" / skill / f"{stamp}-ablation.json"
+    out.write_text(_json.dumps(doc, indent=2) + "\n")
+    console.print(
+        f"[bold]{skill}[/]: {doc['verdict']} (with {_pct(doc['pass_rate'])}, "
+        f"without {_pct(doc['baseline_pass_rate'])}; margin ±{ablation.LIFT_MARGIN:.0%})"
+    )
+    table = Table("section removed", "pass rate", "Δ", "~tokens saved", "verdict")
+    for r in doc["sections"]:
+        delta = "-" if r["delta"] is None else f"{r['delta']:+.0%}"
+        table.add_row(
+            r["section"], _pct(r["pass_rate"]), delta, str(r["tokens_saved"]), r["verdict"]
+        )
+    console.print(table)
+    if doc["eval_too_easy"]:
+        console.print(
+            "[yellow]note:[/] the full skill is above max_pass_rate, so the suite can't "
+            "show what a section contributes; add harder cases first."
+        )
+    if any(r["verdict"] == "delete section" for r in doc["sections"]):
+        console.print(
+            "[yellow]note:[/] sections are removed one at a time; delete one, then "
+            "re-run the ablation before deleting another."
+        )
+    console.print(f"wrote {out.relative_to(root)}")
+
+
+@app.command("bench")
+def bench_cmd(
+    skill: Annotated[str, typer.Argument(help="Skill to benchmark.")],
+    models: Annotated[str, typer.Option(help="Comma-separated model ids.")] = (
+        "claude-haiku-5-5,claude-sonnet-5-5,claude-opus-5-5"
+    ),
+    runs: Annotated[int | None, typer.Option(help="Runs per case.")] = None,
+    budget: Annotated[float, typer.Option(help="USD ceiling per model.")] = 2.0,
+    jobs: Annotated[int, typer.Option("--jobs", "-j", help="Concurrent runs.")] = 4,
+    write: Annotated[
+        bool, typer.Option("--write", help="Make the recommendation the spec's default model.")
+    ] = False,
+) -> None:
+    """Run the suite on several models; recommend the cheapest that meets min_pass_rate."""
+    from skill_factory.eval import bench
+    from skill_factory.eval.runner import EvalError, EvalOptions, run_eval
+
+    root = _root()
+    s = load_skill(root / "skills" / skill)
+    summaries = {}
+    for m in [x.strip() for x in models.split(",") if x.strip()]:
+        console.print(f"{m}…")
+        opts = EvalOptions(runs=runs, model=m, budget_usd=budget, concurrency=jobs, ablation=False)
+        try:
+            summaries[m], _ = run_eval(s, root / "runs", opts, label=f"bench-{m}")
+        except EvalError as e:
+            err.print(f"[red]error:[/] {m}: {e}")
+    table_rows = bench.rows(summaries, s.spec.evals.min_pass_rate)
+    best = bench.recommend(table_rows)
+    table = Table(
+        "model",
+        "pass rate",
+        "mean cost/run",
+        "skill fired",
+        "meets bar",
+        title=f"{skill}: min_pass_rate {s.spec.evals.min_pass_rate:.0%}",
+    )
+    for r in table_rows:
+        cost = "-" if r.mean_cost_usd is None else f"${r.mean_cost_usd:.4f}"
+        table.add_row(
+            ("* " if r.model == best else "") + r.model,
+            _pct(r.pass_rate),
+            cost,
+            _pct(r.fired),
+            "yes" if r.meets_bar else "no",
+        )
+    console.print(table)
+    if best is None:
+        raise typer.Exit(1)
+    console.print(f"recommended default: {best}")
+    if write:
+        order = bench.write_default_model(s.spec_path, best)
+        console.print(f"spec targets.models -> {order} (rebuild + review the diff)")
+
+
+judge_app = typer.Typer(help="LLM-judge calibration.", no_args_is_help=True)
+app.add_typer(judge_app, name="judge")
+
+
+@judge_app.command("calibrate")
+def judge_calibrate(
+    skill: Annotated[str, typer.Argument(help="Skill whose evals/_calibration/ to use.")],
+    model: Annotated[str, typer.Option(help="Judge model.")] = "claude-haiku-5-5",
+    votes: Annotated[int, typer.Option(help="Votes per item (majority wins).")] = 3,
+    backend: Annotated[
+        Literal["claude-cli", "api"], typer.Option(help="claude-cli (default) or api.")
+    ] = "claude-cli",
+) -> None:
+    """Grade author-labelled responses with the judge; report agreement and Cohen's kappa."""
+    from skill_factory.compile.backend import BackendError, get_backend
+    from skill_factory.eval import judge
+
+    root = _root()
+    try:
+        items = judge.load_items(root / "skills" / skill / "evals")
+    except ValueError as e:
+        err.print(f"[red]error:[/] {e}")
+        raise typer.Exit(2) from e
+    if not items:
+        err.print(f"[red]error:[/] no items in skills/{skill}/evals/_calibration/*.yaml")
+        raise typer.Exit(2)
+    be = get_backend(backend)
+    graded = []
+    table = Table("item", "author", "judge", "votes", "agree")
+    try:
+        for it in items:
+            g = judge.grade(it, be, model, votes)
+            graded.append(g)
+            table.add_row(
+                it.id,
+                "pass" if it.label else "fail",
+                "pass" if g.judge else "fail",
+                "".join("P" if v else "F" for v in g.votes),
+                "[green]yes[/]" if g.agrees else "[red]no[/]",
+            )
+    except BackendError as e:
+        err.print(f"[red]error:[/] {e}")
+        raise typer.Exit(1) from e
+    console.print(table)
+    agreement = sum(g.agrees for g in graded) / len(graded)
+    kappa = judge.cohen_kappa([(g.item.label, g.judge) for g in graded])
+    k = "n/a" if kappa is None else f"{kappa:.2f}"
+    console.print(f"agreement {agreement:.0%}, Cohen's kappa {k} ({len(graded)} items, {model})")
+    for g in graded:
+        if not g.agrees:
+            console.print(f"  [yellow]{g.item.id}[/]: {g.reasons[0][:200]}")
+    if kappa is None or kappa < judge.KAPPA_TRUST:
+        err.print(
+            f"[yellow]warning:[/] kappa below {judge.KAPPA_TRUST}; don't trust llm graders "
+            f"for {skill} until the criteria or labels are fixed"
+        )
+        raise typer.Exit(1)
+
+
 @app.callback()
 def main() -> None:
     """Skill factory CLI."""
