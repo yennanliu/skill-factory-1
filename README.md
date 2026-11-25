@@ -1,20 +1,18 @@
 # skill-factory-1
 
+**English** | [繁體中文](README.zh-TW.md)
+
 A scaled-down, Uber-style platform for authoring, evaluating, measuring and improving agent skills
-(Claude Code first; Codex / OpenCode / Gemini CLI later).
+(Claude Code first; Codex / OpenCode / Gemini CLI too).
 
-一個縮小版、Uber 風格的 agent skill 平台：撰寫、評測、量測並持續改善 agent skill
-（先支援 Claude Code，之後再支援 Codex / OpenCode / Gemini CLI）。
-
-## Docs / 文件
+## Docs
 - Project site: <http://yennj12.js.org/skill-factory-1/>
-- Design doc (English): [docs/DESIGN.en.md](docs/DESIGN.en.md)
-- 設計文件（繁體中文）：[docs/DESIGN.zh-TW.md](docs/DESIGN.zh-TW.md)
-- Implementation plan (English): [docs/IMPLEMENTATION_PLAN.en.md](docs/IMPLEMENTATION_PLAN.en.md)
-- 實作計畫（繁體中文）：[docs/IMPLEMENTATION_PLAN.zh-TW.md](docs/IMPLEMENTATION_PLAN.zh-TW.md)
+- Design doc: [docs/DESIGN.en.md](docs/DESIGN.en.md) ([繁體中文](docs/DESIGN.zh-TW.md))
+- Implementation plan: [docs/IMPLEMENTATION_PLAN.en.md](docs/IMPLEMENTATION_PLAN.en.md) ([繁體中文](docs/IMPLEMENTATION_PLAN.zh-TW.md))
+- Claude Code contract: [docs/CLAUDE_CODE_CONTRACT.md](docs/CLAUDE_CODE_CONTRACT.md)
 
-## Quickstart / 快速開始
-Requires [uv](https://docs.astral.sh/uv/) and Claude Code. 需要 uv 與 Claude Code。
+## Quickstart
+Requires [uv](https://docs.astral.sh/uv/) and Claude Code.
 
 ```bash
 uv sync                      # create .venv and install deps from uv.lock
@@ -44,7 +42,7 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy
 scripts/probe_claude.sh      # re-capture Claude Code payloads after upgrading the CLI (~$0.01)
 ```
 
-## Install the skills / 安裝 skill
+## Install the skills
 ```
 /plugin marketplace add yennanliu/skill-factory-1
 /plugin install sf-core@skill-factory
@@ -58,7 +56,7 @@ scripts/probe_claude.sh      # re-capture Claude Code payloads after upgrading t
 | `domain` + `domain: x` | `sf-domain-x` |
 | `experimental` | `sf-experimental` |
 
-## Telemetry / 遙測
+## Telemetry
 Two sources, both local-only (`$SF_HOME`, default `~/.skill-factory/`):
 
 1. **Hooks**: install `sf-platform` (`/plugin install sf-platform@skill-factory`). Each skill call, each tool error
@@ -77,7 +75,7 @@ Two sources, both local-only (`$SF_HOME`, default `~/.skill-factory/`):
    `~/.claude/settings.json` so it displays `$0.42 · Opus 5.5 · ctx 31% · lc-add`. The cost turns yellow at 50% of
    the session budget and red at 80%. There are no hard caps.
 
-## Authoring / 撰寫
+## Authoring
 `spec.yaml` is the source of truth (Uber's lesson: write the spec first so intent survives model changes).
 `sf compile` asks Claude for the description, the body and 3–5 draft eval cases, using structured output.
 It runs the linter on the result and feeds any failures back (up to 2 retries). It writes `SKILL.md.new`
@@ -90,7 +88,7 @@ recompiling. Backends:
 
 Draft eval cases are tagged `draft` and are never overwritten once they exist. Review them before trusting them.
 
-## Evals / 評測
+## Evals
 Cases live in `skills/<name>/evals/<case>/case.yaml`, in Claude Code's own
 [plugin eval format](https://code.claude.com/docs/en/plugin-evals.md). Shared scaffold scripts go in `evals/_shared/`.
 `sf eval` stages the skill as a one-skill plugin and runs `claude plugin eval` with `--no-publish`, `--scaffold`,
@@ -98,7 +96,7 @@ the spec's tool grants and a no-plugin **baseline arm**. It then reports, per ca
 a 95% Wilson interval, the baseline pass rate, the mean score, and how often the skill actually fired.
 Each skill's status is checked against its spec: `ok`, `below-min` (exit 1) or `too-easy` (above `max_pass_rate`).
 
-## Does the skill earn its tokens? / skill 值得它的 token 嗎？
+## Does the skill earn its tokens?
 - **`sf ablate`** runs the full skill against a no-skill baseline. Verdict: `keep`, `optimize` (helps but costs
   more than 1.5× the baseline), `shorten or retire` (a tie within ±10%) or `retire`. It then removes each `##`
   section in turn: `delete section` if the pass rate doesn't drop, `keep section`, or `inconclusive` when the
@@ -111,7 +109,7 @@ Each skill's status is checked against its spec: `ok`, `below-min` (exit 1) or `
 - Clean room: every `claude plugin eval` run already gets a temporary home and config, an OS sandbox for shell
   tools, and only the plugin under test, so a separate Docker image isn't needed.
 
-## The improvement loop / 改善循環
+## The improvement loop
 The always-on `sf-platform` plugin ships two skills:
 - **`log-papercut`**: whenever a skill, script or tool misbehaves, the agent files a structured report
   (`scripts/log_papercut.py` → `$SF_HOME/papercuts/inbox.jsonl`), even if it recovered.
@@ -123,14 +121,14 @@ reproduce the bug and confirm it fails, fix the **spec**, `sf compile --apply`, 
 `sf papercuts close <id>`. `sf analyze` covers the waste *between* skills: expensive models on read-only work,
 large tool results, cache expiry after breaks, heavy preloaded context, polling, search thrash and retry loops.
 
-## Other agents / 其他 agent
+## Other agents
 `sf install --agent codex|opencode|gemini [--scope user|project]` copies built skills into
 `~/.codex/skills`, `~/.config/opencode/skills` or `~/.gemini/skills` (project scope: `.codex/skills`,
 `.opencode/skills`, `.gemini/skills`). It strips Claude-only frontmatter (`allowed-tools`) and installs only skills
 whose spec lists that agent in `targets.agents` (`--all-skills` overrides). It never replaces a skill it didn't
 install. Telemetry hooks are Claude Code only.
 
-## Managed agents / 託管 agent
+## Managed agents
 `managed/<name>.yaml` defines a skill-backed job that runs headless on a schedule. Each one has a prompt, plugins,
 model, budget and outcome checks (required strings, every repo skill mentioned, a cost ceiling).
 `sf agent run` records the cost, turns and outcome under `runs/agents/<name>/`. Example: `weekly-skill-digest`.
@@ -143,8 +141,9 @@ model, budget and outcome checks (required strings, every repo skill mentioned, 
     `ANTHROPIC_API_KEY` secret and is skipped without it.
 - `nightly-evals.yml`: the full suite daily, ablation on Mondays, and the HTML report as an artifact.
 - `managed-agents.yml`: `sf agent run --all` weekly.
+- `pages.yml`: deploys the project site when `site/` changes.
 
-## Layout / 結構
+## Layout
 | Path | What |
 |---|---|
 | `src/skill_factory/` | the `sf` CLI |
@@ -152,16 +151,18 @@ model, budget and outcome checks (required strings, every repo skill mentioned, 
 | `market.yaml` | marketplace name/owner and per-plugin versions |
 | `plugins/`, `.claude-plugin/` | **generated** by `sf build`; never edit by hand |
 | `scripts/probe_claude.sh` | records real hook / stream-json payloads into `tests/fixtures/claude/<version>/` |
-| `src/skill_factory/lint/rules.py` | lint rules SF001–SF013; waive per skill with `lint_waivers` in `spec.yaml` |
+| `src/skill_factory/lint/rules.py` | lint rules SF001–SF014; waive per skill with `lint_waivers` in `spec.yaml` |
 | `hooks/` | telemetry hook (stdlib only) + `hooks.json`, shipped in `sf-platform` via `assets` |
 | `src/skill_factory/telemetry/` | OTLP collector, DuckDB ingest, `sf stats` |
+| `site/` | project site (static page, English + 繁體中文) |
 | `docs/CLAUDE_CODE_CONTRACT.md` | Claude Code facts we depend on, confirmed by the probe |
 
-## Status / 狀態
-All 10 phases (0-9) of the implementation plan are implemented — see [the implementation plan](docs/IMPLEMENTATION_PLAN.en.md).
-實作計畫的 10 個階段（0–9）皆已完成— 見[實作計畫](docs/IMPLEMENTATION_PLAN.zh-TW.md)。
+## Status
+All 10 phases (0-9) of [the implementation plan](docs/IMPLEMENTATION_PLAN.en.md) are implemented, plus
+three experimental skills (`commit-message-writer`, `changelog-writer`, `cron-explainer`).
+`scripts/e2e_local.sh` runs an end-to-end check against the real Claude Code CLI.
 
-## References / 參考
+## References
 - Uber Engineering — [How Uber Evals 1 Million Agent Skill Invocations a Month](https://www.uber.com/us/en/blog/optimizing-ubers-agent-skills/) (2026-11-23)
 - Uber Engineering — [Running a Software Factory Efficiently at Uber Scale](https://www.uber.com/us/en/blog/efficient-software-factory/) (2026-08-27)
 - [Agent Skills spec](https://agentskills.io)

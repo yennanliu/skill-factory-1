@@ -1,217 +1,284 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>skill-factory</title>
-<meta name="description" content="Spec-first, evaluated and measured agent skills for Claude Code. Author, lint, evaluate, measure and improve skills.">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%232f6fed'/><path d='M9 21l5-10 4 7 3-4 3 7' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+<meta name="description" content="Spec-first, evaluated and measured agent skills for Claude Code.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%234f46e5'/><path d='M9 21l5-10 4 7 3-4 3 7' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+TC:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="style.css">
+<script>
+  // Pick the language before first paint: ?lang= > saved choice > browser language > English.
+  (function () {
+    var lang = "en";
+    try {
+      var q = new URLSearchParams(location.search).get("lang");
+      var saved = localStorage.getItem("sf-lang");
+      if (q === "zh-TW" || q === "en") lang = q === "en" ? "en" : "zh";
+      else if (saved === "zh" || saved === "en") lang = saved;
+      else if (/^zh/i.test(navigator.language || "")) lang = "zh";
+    } catch (e) {}
+    document.documentElement.setAttribute("data-lang", lang);
+    document.documentElement.lang = lang === "zh" ? "zh-Hant" : "en";
+  })();
+</script>
 </head>
 <body>
 <header class="nav">
   <div class="wrap nav-inner">
-    <a class="brand" href="#top" aria-label="skill-factory home">
-      <span class="logo" aria-hidden="true"></span>skill-factory
-    </a>
-    <nav aria-label="Sections">
-      <a href="#loop">How it works</a>
-      <a href="#results">Results</a>
-      <a href="#quickstart">Quickstart</a>
-      <a href="#commands">Commands</a>
-      <a href="#docs">Docs</a>
-      <a class="gh" href="https://github.com/yennanliu/skill-factory-1">GitHub</a>
+    <a class="brand" href="#top"><span class="logo" aria-hidden="true"></span>skill-factory</a>
+    <nav class="links" aria-label="Sections">
+      <a href="#loop"><span lang="en">How it works</span><span lang="zh-Hant">運作方式</span></a>
+      <a href="#results"><span lang="en">Results</span><span lang="zh-Hant">評測結果</span></a>
+      <a href="#quickstart"><span lang="en">Quickstart</span><span lang="zh-Hant">快速開始</span></a>
+      <a href="#docs"><span lang="en">Docs</span><span lang="zh-Hant">文件</span></a>
     </nav>
+    <div class="nav-right">
+      <div class="lang-toggle" role="group" aria-label="Language / 語言">
+        <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+        <button type="button" data-set-lang="zh" aria-pressed="false">中文</button>
+      </div>
+      <a class="btn small dark" href="https://github.com/yennanliu/skill-factory-1">GitHub</a>
+    </div>
   </div>
 </header>
 
 <main id="top">
-  <section class="hero wrap">
-    <p class="eyebrow">Agent skills, treated as software</p>
-    <h1>Every skill proven to help,<br>with a known cost.</h1>
-    <p class="lede">
-      skill-factory is a small, Uber-style platform for Claude Code skills. Write a spec,
-      compile it into a <code>SKILL.md</code>, lint it, evaluate it against a no-skill baseline,
-      ship it as a plugin, measure what it costs per call, and let agents report what breaks.
-    </p>
-    <div class="cta">
-      <a class="btn primary" href="#quickstart">Get started</a>
-      <a class="btn" href="https://github.com/yennanliu/skill-factory-1">View on GitHub</a>
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <p class="badge"><span class="dot"></span>
+          <span lang="en">Agent skills, treated as software</span>
+          <span lang="zh-Hant">把 agent skill 當成軟體經營</span></p>
+        <h1>
+          <span lang="en">Every skill <span class="grad">proven to help</span>, with a known cost.</span>
+          <span lang="zh-Hant">每個 skill 都<span class="grad">證明有用</span>，成本一清二楚。</span>
+        </h1>
+        <p class="lede">
+          <span lang="en">A small, Uber-style platform for Claude Code skills. Write a spec, compile it into a <code>SKILL.md</code>, lint it, evaluate it against a no-skill baseline, ship it as a plugin, measure its cost per call — and let agents report what breaks.</span>
+          <span lang="zh-Hant">一個縮小版、Uber 風格的 Claude Code skill 平台。寫 spec、編譯成 <code>SKILL.md</code>、lint、與「沒有 skill」的對照組比較評測、以 plugin 發佈、量測每次呼叫的成本，並讓 agent 自己回報哪裡壞了。</span>
+        </p>
+        <div class="cta">
+          <a class="btn primary" href="#quickstart"><span lang="en">Get started</span><span lang="zh-Hant">開始使用</span></a>
+          <a class="btn ghost" href="https://github.com/yennanliu/skill-factory-1"><span lang="en">View on GitHub</span><span lang="zh-Hant">在 GitHub 查看</span> →</a>
+        </div>
+        <dl class="stats">
+          <div><dt>273</dt><dd><span lang="en">tests</span><span lang="zh-Hant">項測試</span></dd></div>
+          <div><dt>9</dt><dd><span lang="en">skills</span><span lang="zh-Hant">個 skill</span></dd></div>
+          <div><dt>13+1</dt><dd><span lang="en">lint rules</span><span lang="zh-Hant">條 lint 規則</span></dd></div>
+          <div><dt>3</dt><dd><span lang="en">other agents</span><span lang="zh-Hant">種其他 agent</span></dd></div>
+        </dl>
+      </div>
+      <div class="terminal" aria-label="Example: sf eval output">
+        <div class="term-bar"><i></i><i></i><i></i><span>~/skill-factory</span></div>
+<pre class="term"><span class="p">$</span> uv run sf eval changelog-writer --runs 3
+<span class="dim">case                          with skill</span>
+breaking-change-first         <b class="ok">pass</b>
+update-changelog-without-…    <b class="ok">pass</b>
+basic-mapping-and-filtering   <b class="ok">pass</b>
+asks-for-missing-version      <b class="ok">pass</b>
+
+<span class="dim">skill              with   without</span>
+changelog-writer   <b class="ok">100%</b>   <b class="no">33%</b></pre>
+      </div>
     </div>
-    <dl class="stats">
-      <div><dt>269</dt><dd>tests</dd></div>
-      <div><dt>13+1</dt><dd>lint rules</dd></div>
-      <div><dt>9</dt><dd>skills shipped</dd></div>
-      <div><dt>3</dt><dd>agents supported</dd></div>
-    </dl>
   </section>
 
-  <section id="loop" class="band">
+  <section id="loop" class="section">
     <div class="wrap">
-      <h2>The loop</h2>
-      <p class="sub">Nothing is overwritten silently, nothing ships unmeasured.</p>
-      <ol class="loop">
-        <li><b>Spec</b><span><code>spec.yaml</code> is the source of truth</span></li>
-        <li><b>Compile</b><span>Claude writes <code>SKILL.md</code> + draft evals</span></li>
-        <li><b>Lint</b><span>house rules, waivers tracked</span></li>
-        <li><b>Eval</b><span>with vs. without the skill</span></li>
-        <li><b>Ship</b><span>plugin marketplace, tiered</span></li>
-        <li><b>Measure</b><span>calls, cost per call, errors</span></li>
-        <li><b>Papercut</b><span>agents file what broke</span></li>
-        <li><b>Fix</b><span>regression case → recompile</span></li>
+      <p class="kicker"><span lang="en">The loop</span><span lang="zh-Hant">改善循環</span></p>
+      <h2><span lang="en">Nothing ships unmeasured.</span><span lang="zh-Hant">沒有量測，就不發佈。</span></h2>
+      <ol class="steps">
+        <li><b><span lang="en">Spec</span><span lang="zh-Hant">Spec</span></b><span lang="en"><code>spec.yaml</code> is the source of truth</span><span lang="zh-Hant"><code>spec.yaml</code> 是唯一真實來源</span></li>
+        <li><b><span lang="en">Compile</span><span lang="zh-Hant">編譯</span></b><span lang="en">Claude writes <code>SKILL.md</code> + draft evals</span><span lang="zh-Hant">Claude 產生 <code>SKILL.md</code> 與評測草稿</span></li>
+        <li><b>Lint</b><span lang="en">house rules, tracked waivers</span><span lang="zh-Hant">規則檢查，豁免可追蹤</span></li>
+        <li><b><span lang="en">Eval</span><span lang="zh-Hant">評測</span></b><span lang="en">with vs. without the skill</span><span lang="zh-Hant">有 vs. 沒有 skill</span></li>
+        <li><b><span lang="en">Ship</span><span lang="zh-Hant">發佈</span></b><span lang="en">tiered plugin marketplace</span><span lang="zh-Hant">分級的 plugin marketplace</span></li>
+        <li><b><span lang="en">Measure</span><span lang="zh-Hant">量測</span></b><span lang="en">calls, cost per call, errors</span><span lang="zh-Hant">呼叫數、單次成本、錯誤</span></li>
+        <li><b>Papercut</b><span lang="en">agents file what broke</span><span lang="zh-Hant">agent 回報哪裡壞了</span></li>
+        <li><b><span lang="en">Fix</span><span lang="zh-Hant">修正</span></b><span lang="en">regression case → recompile</span><span lang="zh-Hant">回歸案例 → 重新編譯</span></li>
       </ol>
     </div>
   </section>
 
-  <section class="wrap">
-    <h2>What's inside</h2>
-    <div class="grid">
-      <article class="card">
-        <h3>Spec compiler</h3>
-        <p><code>sf compile</code> turns a spec into a lint-clean <code>SKILL.md</code> and draft eval
-        cases, feeding lint failures back to the model. Uses your Claude Code login or the API.</p>
-      </article>
-      <article class="card">
-        <h3>Evals with a baseline</h3>
-        <p><code>sf eval</code> runs Claude Code's own <code>claude plugin eval</code> harness, with
-        and without the skill, and reports pass rates with 95% intervals against the spec's bar.</p>
-      </article>
-      <article class="card">
-        <h3>Ablation &amp; model bench</h3>
-        <p><code>sf ablate</code> removes one section at a time; <code>sf bench</code> finds the
-        cheapest model that clears the bar; <code>sf judge calibrate</code> checks the LLM judge.</p>
-      </article>
-      <article class="card">
-        <h3>Telemetry, locally</h3>
-        <p>Hooks plus a tiny OTLP collector on 127.0.0.1. Cost per skill comes from
-        <code>api_request.cost_usd</code> grouped by <code>skill.name</code>. No prompts recorded.</p>
-      </article>
-      <article class="card">
-        <h3>Papercuts</h3>
-        <p>An always-on skill lets agents file structured friction reports.
-        <code>sf papercuts promote</code> turns one into a failing regression case.</p>
-      </article>
-      <article class="card">
-        <h3>Ship anywhere</h3>
-        <p>A Claude Code plugin marketplace, plus <code>sf install</code> for Codex, OpenCode
-        and Gemini CLI. CI, nightly evals and scheduled managed agents included.</p>
-      </article>
-    </div>
-  </section>
-
-  <section id="results" class="band">
+  <section class="section soft">
     <div class="wrap">
-      <h2>Measured, not assumed</h2>
-      <p class="sub">Pass rate with the skill vs. the same model without it (3 runs per case, Sonnet).</p>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Skill</th><th>With skill</th><th>Without</th><th>Verdict</th></tr></thead>
-          <tbody>
-            <tr><td><code>commit-message-writer</code></td><td class="num">92%</td><td class="num">0%</td><td><span class="pill good">helps</span></td></tr>
-            <tr><td><code>changelog-writer</code></td><td class="num">100%</td><td class="num">33%</td><td><span class="pill good">helps</span></td></tr>
-            <tr><td><code>cron-explainer</code></td><td class="num">100%</td><td class="num">25%</td><td><span class="pill good">helps</span></td></tr>
-            <tr><td><code>log-papercut</code></td><td class="num">100%</td><td class="num">0%</td><td><span class="pill good">helps</span></td></tr>
-            <tr><td><code>find-skills</code></td><td class="num">88%</td><td class="num">0%</td><td><span class="pill good">helps</span></td></tr>
-            <tr><td><code>python-code-reviewer</code></td><td class="num">100%</td><td class="num">50%</td><td><span class="pill good">helps</span></td></tr>
-            <tr><td><code>lc-add</code></td><td class="num">92%</td><td class="num">67%</td><td><span class="pill good">helps</span></td></tr>
-            <tr><td><code>lc-coach</code></td><td class="num">67%</td><td class="num">33%</td><td><span class="pill warn">below bar</span></td></tr>
-            <tr><td><code>fastapi-master</code></td><td class="num">100%</td><td class="num">100%</td><td><span class="pill bad">no measurable value</span></td></tr>
-          </tbody>
-        </table>
+      <p class="kicker"><span lang="en">What's inside</span><span lang="zh-Hant">功能</span></p>
+      <h2><span lang="en">One CLI for the whole skill lifecycle.</span><span lang="zh-Hant">一個 CLI，涵蓋 skill 的完整生命週期。</span></h2>
+      <div class="bento">
+        <article class="tile wide">
+          <span class="icon">⌘</span>
+          <h3><span lang="en">Spec compiler</span><span lang="zh-Hant">Spec 編譯器</span></h3>
+          <p><span lang="en"><code>sf compile</code> turns a spec into a lint-clean <code>SKILL.md</code> plus draft eval cases, feeding lint failures back to the model. Nothing is overwritten without <code>--apply</code>.</span><span lang="zh-Hant"><code>sf compile</code> 把 spec 編譯成通過 lint 的 <code>SKILL.md</code> 與評測草稿，並把 lint 失敗回饋給模型。沒有 <code>--apply</code> 就不會覆寫任何東西。</span></p>
+        </article>
+        <article class="tile">
+          <span class="icon">◎</span>
+          <h3><span lang="en">Evals with a baseline</span><span lang="zh-Hant">含對照組的評測</span></h3>
+          <p><span lang="en">Runs Claude Code's own <code>claude plugin eval</code> with and without the skill; pass rates with 95% intervals.</span><span lang="zh-Hant">以 Claude Code 自己的 <code>claude plugin eval</code> 比較有無 skill，回報通過率與 95% 信賴區間。</span></p>
+        </article>
+        <article class="tile">
+          <span class="icon">✂</span>
+          <h3><span lang="en">Ablation &amp; model bench</span><span lang="zh-Hant">消融與模型基準</span></h3>
+          <p><span lang="en">Which sections earn their tokens; the cheapest model that clears the bar.</span><span lang="zh-Hant">哪些段落值得它的 token；達標中最便宜的模型。</span></p>
+        </article>
+        <article class="tile">
+          <span class="icon">◔</span>
+          <h3><span lang="en">Local telemetry</span><span lang="zh-Hant">本機遙測</span></h3>
+          <p><span lang="en">Hooks + a tiny OTLP collector on 127.0.0.1. Cost per skill from <code>skill.name</code>. No prompts recorded.</span><span lang="zh-Hant">Hooks 加上監聽 127.0.0.1 的小型 OTLP collector，依 <code>skill.name</code> 算出每個 skill 的成本。不記錄 prompt。</span></p>
+        </article>
+        <article class="tile">
+          <span class="icon">✎</span>
+          <h3>Papercuts</h3>
+          <p><span lang="en">Agents file structured friction reports; one command turns a report into a failing regression case.</span><span lang="zh-Hant">Agent 提交結構化的問題回報，一個指令就能變成會失敗的回歸案例。</span></p>
+        </article>
+        <article class="tile full">
+          <span class="icon">⇪</span>
+          <h3><span lang="en">Ship anywhere, run on a schedule</span><span lang="zh-Hant">到處發佈，依排程執行</span></h3>
+          <p><span lang="en">A Claude Code plugin marketplace, plus <code>sf install</code> for Codex, OpenCode and Gemini CLI. CI evals on every PR, nightly suites, and managed agents with outcome checks.</span><span lang="zh-Hant">Claude Code plugin marketplace，加上可安裝到 Codex、OpenCode、Gemini CLI 的 <code>sf install</code>。每個 PR 跑評測、每晚跑完整套件，以及帶成果檢查的託管 agent。</span></p>
+        </article>
       </div>
-      <p class="note">That last row is the point: without a baseline, every skill looks like it works.</p>
     </div>
   </section>
 
-  <section id="quickstart" class="wrap">
-    <h2>Quickstart</h2>
-    <div class="cols">
-      <div>
-        <h3>Use the skills</h3>
-        <pre><code>/plugin marketplace add yennanliu/skill-factory-1
+  <section id="results" class="section">
+    <div class="wrap">
+      <p class="kicker"><span lang="en">Measured, not assumed</span><span lang="zh-Hant">量測，而非假設</span></p>
+      <h2><span lang="en">Pass rate with vs. without each skill.</span><span lang="zh-Hant">每個 skill 有無之下的通過率。</span></h2>
+      <p class="sub"><span lang="en">Same model (Sonnet), same prompts, 3 runs per case.</span><span lang="zh-Hant">同一個模型（Sonnet）、同樣的 prompt，每個案例跑 3 次。</span></p>
+      <div class="legend"><span class="sw with"></span><span lang="en">with skill</span><span lang="zh-Hant">有 skill</span><span class="sw without"></span><span lang="en">without</span><span lang="zh-Hant">沒有 skill</span></div>
+      <div class="bars">
+        <div class="bar-row"><code>changelog-writer</code><div class="track"><i class="with" style="--v:100%"></i><i class="without" style="--v:33%"></i></div><span class="vals">100% <em>/ 33%</em></span></div>
+        <div class="bar-row"><code>commit-message-writer</code><div class="track"><i class="with" style="--v:92%"></i><i class="without" style="--v:0%"></i></div><span class="vals">92% <em>/ 0%</em></span></div>
+        <div class="bar-row"><code>cron-explainer</code><div class="track"><i class="with" style="--v:100%"></i><i class="without" style="--v:25%"></i></div><span class="vals">100% <em>/ 25%</em></span></div>
+        <div class="bar-row"><code>log-papercut</code><div class="track"><i class="with" style="--v:100%"></i><i class="without" style="--v:0%"></i></div><span class="vals">100% <em>/ 0%</em></span></div>
+        <div class="bar-row"><code>find-skills</code><div class="track"><i class="with" style="--v:88%"></i><i class="without" style="--v:0%"></i></div><span class="vals">88% <em>/ 0%</em></span></div>
+        <div class="bar-row"><code>python-code-reviewer</code><div class="track"><i class="with" style="--v:100%"></i><i class="without" style="--v:50%"></i></div><span class="vals">100% <em>/ 50%</em></span></div>
+        <div class="bar-row"><code>lc-add</code><div class="track"><i class="with" style="--v:92%"></i><i class="without" style="--v:67%"></i></div><span class="vals">92% <em>/ 67%</em></span></div>
+        <div class="bar-row"><code>lc-coach</code><div class="track"><i class="with" style="--v:67%"></i><i class="without" style="--v:33%"></i></div><span class="vals">67% <em>/ 33%</em></span></div>
+        <div class="bar-row flag"><code>fastapi-master</code><div class="track"><i class="with" style="--v:100%"></i><i class="without" style="--v:100%"></i></div><span class="vals">100% <em>/ 100%</em></span></div>
+      </div>
+      <p class="callout"><span lang="en"><b>That last row is the point.</b> Without a baseline, <code>fastapi-master</code> looks perfect — the bare model scores the same, so the skill adds nothing measurable.</span><span lang="zh-Hant"><b>最後一列才是重點。</b>沒有對照組，<code>fastapi-master</code> 看起來完美——但不用 skill 的模型分數一樣，所以這個 skill 沒有可量測的價值。</span></p>
+    </div>
+  </section>
+
+  <section id="quickstart" class="section soft">
+    <div class="wrap">
+      <p class="kicker"><span lang="en">Quickstart</span><span lang="zh-Hant">快速開始</span></p>
+      <h2><span lang="en">Use the skills, or build your own.</span><span lang="zh-Hant">使用現成 skill，或打造自己的。</span></h2>
+      <div class="code-grid">
+        <div class="code-card">
+          <h3><span lang="en">Install in Claude Code</span><span lang="zh-Hant">在 Claude Code 安裝</span></h3>
+<pre><code>/plugin marketplace add yennanliu/skill-factory-1
 /plugin install sf-platform@skill-factory
 /plugin install sf-core@skill-factory</code></pre>
-      </div>
-      <div>
-        <h3>Work on the repo</h3>
-        <pre><code>git clone https://github.com/yennanliu/skill-factory-1
-cd skill-factory-1
-uv sync
+        </div>
+        <div class="code-card">
+          <h3><span lang="en">Work on the repo</span><span lang="zh-Hant">開發本專案</span></h3>
+<pre><code>git clone https://github.com/yennanliu/skill-factory-1
+cd skill-factory-1 && uv sync
 uv run sf --help
-scripts/e2e_local.sh   # end-to-end check</code></pre>
-      </div>
-    </div>
-    <h3>A new skill in minutes</h3>
-    <pre><code>uv run sf new my-skill --goal "One sentence on what it achieves."
-# edit skills/my-skill/spec.yaml: triggers, outputs, tools
+scripts/e2e_local.sh</code></pre>
+        </div>
+        <div class="code-card full">
+          <h3><span lang="en">A new skill in minutes</span><span lang="zh-Hant">幾分鐘做出新 skill</span></h3>
+<pre><code>uv run sf new my-skill --goal "One sentence on what it achieves."
 uv run sf compile my-skill --apply     # spec → SKILL.md + draft evals
 uv run sf eval my-skill --runs 3       # with vs. without the skill
 uv run sf build                        # → plugins/ + marketplace.json</code></pre>
-  </section>
-
-  <section id="commands" class="band">
-    <div class="wrap">
-      <h2>Commands</h2>
-      <div class="table-wrap">
-        <table class="cmds">
-          <tbody>
-            <tr><td><code>sf new</code> / <code>sf compile</code></td><td>scaffold a skill; compile its spec into SKILL.md and draft evals</td></tr>
-            <tr><td><code>sf spec validate</code> / <code>sf lint</code></td><td>validate specs; lint against the house rules</td></tr>
-            <tr><td><code>sf build</code> / <code>sf release</code></td><td>generate the plugin marketplace; bump skill + plugin versions</td></tr>
-            <tr><td><code>sf eval</code></td><td>run eval suites with a no-skill baseline</td></tr>
-            <tr><td><code>sf ablate</code> / <code>sf bench</code></td><td>what each section contributes; cheapest model that clears the bar</td></tr>
-            <tr><td><code>sf judge calibrate</code></td><td>LLM judge vs. your labels (Cohen's κ)</td></tr>
-            <tr><td><code>sf otel up</code> / <code>sf stats</code></td><td>local telemetry collector; per-skill calls, cost and errors</td></tr>
-            <tr><td><code>sf report</code> / <code>sf analyze</code></td><td>HTML report; costliest sessions and wasteful patterns</td></tr>
-            <tr><td><code>sf papercuts</code> / <code>sf search</code></td><td>triage agent-filed reports; find an existing skill</td></tr>
-            <tr><td><code>sf install</code> / <code>sf agent run</code></td><td>install into Codex / OpenCode / Gemini CLI; run managed agents</td></tr>
-          </tbody>
-        </table>
+        </div>
       </div>
     </div>
   </section>
 
-  <section id="docs" class="wrap">
-    <h2>Docs</h2>
-    <div class="grid docs">
-      <a class="card link" href="https://github.com/yennanliu/skill-factory-1/blob/main/docs/DESIGN.en.md">
-        <h3>Design</h3><p>What we build and why, mapped from Uber's skill platform.</p>
-      </a>
-      <a class="card link" href="https://github.com/yennanliu/skill-factory-1/blob/main/docs/IMPLEMENTATION_PLAN.en.md">
-        <h3>Implementation plan</h3><p>Ten phases, data contracts, decisions log.</p>
-      </a>
-      <a class="card link" href="https://github.com/yennanliu/skill-factory-1/blob/main/docs/CLAUDE_CODE_CONTRACT.md">
-        <h3>Claude Code contract</h3><p>Hook, OTel and eval-harness facts, verified by probes.</p>
-      </a>
-      <a class="card link" href="https://github.com/yennanliu/skill-factory-1/blob/main/README.md">
-        <h3>README</h3><p>Every command, telemetry setup, CI and layout.</p>
-      </a>
+  <section id="commands" class="section">
+    <div class="wrap">
+      <p class="kicker"><span lang="en">Commands</span><span lang="zh-Hant">指令</span></p>
+      <h2><span lang="en">Everything is one <code>sf</code> away.</span><span lang="zh-Hant">所有功能都在 <code>sf</code> 之下。</span></h2>
+      <dl class="cmds">
+        <div><dt><code>sf new</code> · <code>sf compile</code></dt><dd><span lang="en">scaffold a skill; compile its spec into SKILL.md + draft evals</span><span lang="zh-Hant">建立 skill；把 spec 編譯成 SKILL.md 與評測草稿</span></dd></div>
+        <div><dt><code>sf spec validate</code> · <code>sf lint</code></dt><dd><span lang="en">validate specs; lint against the house rules</span><span lang="zh-Hant">驗證 spec；依規則 lint</span></dd></div>
+        <div><dt><code>sf build</code> · <code>sf release</code></dt><dd><span lang="en">generate the marketplace; bump versions</span><span lang="zh-Hant">產生 marketplace；更新版本</span></dd></div>
+        <div><dt><code>sf eval</code></dt><dd><span lang="en">eval suites with a no-skill baseline</span><span lang="zh-Hant">含無 skill 對照組的評測</span></dd></div>
+        <div><dt><code>sf ablate</code> · <code>sf bench</code></dt><dd><span lang="en">what each section adds; cheapest passing model</span><span lang="zh-Hant">各段落的貢獻；達標中最便宜的模型</span></dd></div>
+        <div><dt><code>sf judge calibrate</code></dt><dd><span lang="en">LLM judge vs. your labels (Cohen's κ)</span><span lang="zh-Hant">LLM judge 與你的標註比對（Cohen's κ）</span></dd></div>
+        <div><dt><code>sf otel up</code> · <code>sf stats</code></dt><dd><span lang="en">local collector; calls, cost and errors per skill</span><span lang="zh-Hant">本機 collector；每個 skill 的呼叫、成本與錯誤</span></dd></div>
+        <div><dt><code>sf report</code> · <code>sf analyze</code></dt><dd><span lang="en">HTML report; costliest sessions and waste</span><span lang="zh-Hant">HTML 報表；最貴的 session 與浪費</span></dd></div>
+        <div><dt><code>sf papercuts</code> · <code>sf search</code></dt><dd><span lang="en">triage agent reports; find an existing skill</span><span lang="zh-Hant">分流 agent 回報；搜尋既有 skill</span></dd></div>
+        <div><dt><code>sf install</code> · <code>sf agent run</code></dt><dd><span lang="en">install into Codex / OpenCode / Gemini; managed agents</span><span lang="zh-Hant">安裝到 Codex / OpenCode / Gemini；託管 agent</span></dd></div>
+      </dl>
     </div>
-    <p class="note">中文：<a href="https://github.com/yennanliu/skill-factory-1/blob/main/docs/DESIGN.zh-TW.md">設計文件</a> ·
-      <a href="https://github.com/yennanliu/skill-factory-1/blob/main/docs/IMPLEMENTATION_PLAN.zh-TW.md">實作計畫</a></p>
+  </section>
+
+  <section id="docs" class="section soft">
+    <div class="wrap">
+      <p class="kicker"><span lang="en">Docs</span><span lang="zh-Hant">文件</span></p>
+      <h2><span lang="en">Read the design behind it.</span><span lang="zh-Hant">了解背後的設計。</span></h2>
+      <div class="docs">
+        <a class="doc" href="https://github.com/yennanliu/skill-factory-1/blob/main/docs/DESIGN.en.md" data-zh-href="https://github.com/yennanliu/skill-factory-1/blob/main/docs/DESIGN.zh-TW.md">
+          <h3><span lang="en">Design</span><span lang="zh-Hant">設計文件</span></h3>
+          <p><span lang="en">What we build and why, mapped from Uber's skill platform.</span><span lang="zh-Hant">要做什麼與為什麼，對照 Uber 的 skill 平台。</span></p></a>
+        <a class="doc" href="https://github.com/yennanliu/skill-factory-1/blob/main/docs/IMPLEMENTATION_PLAN.en.md" data-zh-href="https://github.com/yennanliu/skill-factory-1/blob/main/docs/IMPLEMENTATION_PLAN.zh-TW.md">
+          <h3><span lang="en">Implementation plan</span><span lang="zh-Hant">實作計畫</span></h3>
+          <p><span lang="en">Ten phases, data contracts, decisions.</span><span lang="zh-Hant">十個階段、資料契約、決策紀錄。</span></p></a>
+        <a class="doc" href="https://github.com/yennanliu/skill-factory-1/blob/main/docs/CLAUDE_CODE_CONTRACT.md">
+          <h3><span lang="en">Claude Code contract</span><span lang="zh-Hant">Claude Code 契約</span></h3>
+          <p><span lang="en">Hook, OTel and eval-harness facts, verified by probes.</span><span lang="zh-Hant">經探測確認的 hook、OTel 與評測框架行為（英文）。</span></p></a>
+        <a class="doc" href="https://github.com/yennanliu/skill-factory-1/blob/main/README.md" data-zh-href="https://github.com/yennanliu/skill-factory-1/blob/main/README.zh-TW.md">
+          <h3>README</h3>
+          <p><span lang="en">Every command, telemetry, CI and layout.</span><span lang="zh-Hant">所有指令、遙測、CI 與專案結構。</span></p></a>
+      </div>
+    </div>
   </section>
 </main>
 
 <footer class="foot">
-  <div class="wrap">
-    <p>Inspired by Uber Engineering:
-      <a href="https://www.uber.com/us/en/blog/optimizing-ubers-agent-skills/">How Uber Evals 1 Million Agent Skill Invocations a Month</a> and
-      <a href="https://www.uber.com/us/en/blog/efficient-software-factory/">Running a Software Factory Efficiently at Uber Scale</a>.</p>
-    <p>Skill format: <a href="https://agentskills.io">agentskills.io</a> · Code on <a href="https://github.com/yennanliu/skill-factory-1">GitHub</a></p>
+  <div class="wrap foot-inner">
+    <p><span lang="en">Inspired by Uber Engineering:</span><span lang="zh-Hant">靈感來自 Uber Engineering：</span>
+      <a href="https://www.uber.com/us/en/blog/optimizing-ubers-agent-skills/">How Uber Evals 1 Million Agent Skill Invocations a Month</a> ·
+      <a href="https://www.uber.com/us/en/blog/efficient-software-factory/">Running a Software Factory Efficiently at Uber Scale</a></p>
+    <p><span lang="en">Skill format:</span><span lang="zh-Hant">Skill 格式：</span> <a href="https://agentskills.io">agentskills.io</a> · <a href="https://github.com/yennanliu/skill-factory-1">GitHub</a></p>
   </div>
 </footer>
+
 <script>
-  // Copy buttons for code blocks (progressive enhancement; the page works without JS).
-  document.querySelectorAll("pre").forEach((pre) => {
-    const b = document.createElement("button");
-    b.className = "copy"; b.type = "button"; b.textContent = "Copy";
-    b.addEventListener("click", async () => {
-      try { await navigator.clipboard.writeText(pre.innerText); b.textContent = "Copied"; }
-      catch { b.textContent = "Select + copy"; }
-      setTimeout(() => (b.textContent = "Copy"), 1500);
+  (function () {
+    var root = document.documentElement;
+    function apply(lang) {
+      root.setAttribute("data-lang", lang);
+      root.lang = lang === "zh" ? "zh-Hant" : "en";
+      document.querySelectorAll("[data-set-lang]").forEach(function (b) {
+        b.setAttribute("aria-pressed", String(b.getAttribute("data-set-lang") === lang));
+      });
+      // docs that exist in both languages point at the matching version
+      document.querySelectorAll("a[data-zh-href]").forEach(function (a) {
+        if (!a.dataset.enHref) a.dataset.enHref = a.getAttribute("href");
+        a.setAttribute("href", lang === "zh" ? a.dataset.zhHref : a.dataset.enHref);
+      });
+      document.title = lang === "zh" ? "skill-factory｜經過驗證的 agent skill" : "skill-factory";
+    }
+    document.querySelectorAll("[data-set-lang]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var lang = b.getAttribute("data-set-lang");
+        apply(lang);
+        try { localStorage.setItem("sf-lang", lang); } catch (e) {}
+      });
     });
-    pre.appendChild(b);
-  });
+    apply(root.getAttribute("data-lang") || "en");
+
+    // copy buttons on code blocks
+    document.querySelectorAll(".code-card pre").forEach(function (pre) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "copy"; b.textContent = "Copy";
+      b.addEventListener("click", function () {
+        var done = function () { b.textContent = "✓"; setTimeout(function () { b.textContent = "Copy"; }, 1400); };
+        if (navigator.clipboard) navigator.clipboard.writeText(pre.innerText).then(done, function () {});
+      });
+      pre.appendChild(b);
+    });
+  })();
 </script>
 </body>
 </html>
